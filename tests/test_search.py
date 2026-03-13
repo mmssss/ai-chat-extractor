@@ -232,9 +232,9 @@ class TestKeyboardHandler(unittest.TestCase):
     def test_context_manager(self):
         """Test KeyboardHandler as context manager"""
         # Mock the Unix-specific modules
-        with patch("realtime_search.termios") as mock_termios, patch(
-            "realtime_search.tty"
-        ) as mock_tty:
+        with patch("sys.stdin.fileno", return_value=0), patch(
+            "realtime_search.termios"
+        ) as mock_termios, patch("realtime_search.tty") as mock_tty:
 
             mock_termios.tcgetattr.return_value = "old_settings"
 
@@ -250,7 +250,7 @@ class TestKeyboardHandler(unittest.TestCase):
     @patch("sys.platform", "win32")
     def test_windows_key_detection(self):
         """Test key detection on Windows"""
-        with patch("realtime_search.msvcrt") as mock_msvcrt:
+        with patch("realtime_search.msvcrt", create=True) as mock_msvcrt:
             handler = KeyboardHandler()
 
             # Test regular character
@@ -472,10 +472,12 @@ class TestIntegration(unittest.TestCase):
             "Python project", search_dir=self.test_dir, mode="smart"
         )
 
-        # Should find results from all projects
-        self.assertEqual(len(results), 3)
+        # Smart mode combines results from multiple search modes,
+        # so we may get more than 3 results. Verify we got results
+        # from all 3 project files.
+        self.assertGreaterEqual(len(results), 3)
 
-        # Results should be from different files
+        # Results should include all 3 project files
         file_paths = {r.file_path for r in results}
         self.assertEqual(len(file_paths), 3)
 

@@ -127,9 +127,12 @@ class TestRealTimeSearchUI(unittest.TestCase):
 
     @patch("realtime_search.threading.Thread")
     @patch("realtime_search.KeyboardHandler")
-    @patch.object(RealTimeSearch, "display")
-    def test_run_exit_key(self, mock_display, mock_keyboard_class, mock_thread_class):
+    def test_run_exit_key(self, mock_keyboard_class, mock_thread_class):
         """Test run exits on ESC key"""
+        # Replace display with mock directly (it's an instance attribute)
+        mock_display = Mock()
+        self.rts.display = mock_display
+
         # Set up mocks
         mock_keyboard = Mock()
         mock_keyboard_class.return_value.__enter__.return_value = mock_keyboard
@@ -148,26 +151,23 @@ class TestRealTimeSearchUI(unittest.TestCase):
 
     @patch("realtime_search.threading.Thread")
     @patch("realtime_search.KeyboardHandler")
-    @patch("realtime_search.TerminalDisplay")
-    def test_run_select_result(
-        self, mock_display_class, mock_keyboard_class, mock_thread_class
-    ):
+    def test_run_select_result(self, mock_keyboard_class, mock_thread_class):
         """Test run returns selected file path"""
-        # Set up mocks
+        # Replace display with mock directly
         mock_display = Mock()
-        mock_display_class.return_value = mock_display
+        self.rts.display = mock_display
 
         mock_keyboard = Mock()
         mock_keyboard_class.return_value.__enter__.return_value = mock_keyboard
 
-        # Set up results
+        # Set up results with proper string attributes
         test_path = Path("/test/file.jsonl")
-        mock_result = Mock(file_path=test_path)
+        mock_result = Mock(file_path=test_path, context="test context")
         self.rts.state.results = [mock_result]
         self.rts.state.selected_index = 0
 
-        # Simulate typing and selecting
-        mock_keyboard.get_key.side_effect = ["t", "e", "s", "t", "ENTER"]
+        # First key press triggers ENTER to select
+        mock_keyboard.get_key.side_effect = ["ENTER"]
 
         # Mock thread
         mock_thread = Mock()
@@ -180,14 +180,11 @@ class TestRealTimeSearchUI(unittest.TestCase):
 
     @patch("realtime_search.threading.Thread")
     @patch("realtime_search.KeyboardHandler")
-    @patch("realtime_search.TerminalDisplay")
-    def test_run_keyboard_interrupt(
-        self, mock_display_class, mock_keyboard_class, mock_thread_class
-    ):
+    def test_run_keyboard_interrupt(self, mock_keyboard_class, mock_thread_class):
         """Test run handles KeyboardInterrupt"""
-        # Set up mocks
+        # Replace display with mock directly
         mock_display = Mock()
-        mock_display_class.return_value = mock_display
+        self.rts.display = mock_display
 
         mock_keyboard = Mock()
         mock_keyboard_class.return_value.__enter__.return_value = mock_keyboard
@@ -205,14 +202,11 @@ class TestRealTimeSearchUI(unittest.TestCase):
 
     @patch("realtime_search.threading.Thread")
     @patch("realtime_search.KeyboardHandler")
-    @patch("realtime_search.TerminalDisplay")
-    def test_run_exception_cleanup(
-        self, mock_display_class, mock_keyboard_class, mock_thread_class
-    ):
+    def test_run_exception_cleanup(self, mock_keyboard_class, mock_thread_class):
         """Test run cleans up on exception"""
-        # Set up mocks
+        # Replace display with mock directly
         mock_display = Mock()
-        mock_display_class.return_value = mock_display
+        self.rts.display = mock_display
 
         mock_keyboard = Mock()
         mock_keyboard_class.return_value.__enter__.return_value = mock_keyboard
