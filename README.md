@@ -199,6 +199,54 @@ claude-extract
 - Shows match previews and conversation context
 - Option to extract matching sessions directly
 
+## ⏱️ Automatic periodic export (systemd)
+
+The repo ships a systemd **timer + oneshot service** pair in `systemd/` that runs incremental exports on a schedule (daily at 04:00 by default).
+
+### Install
+
+1. Copy units to your user systemd directory:
+  ```bash
+  mkdir -p ~/.config/systemd/user
+  cp systemd/claude-conversation-extractor.{service,timer} ~/.config/systemd/user/
+  ```
+
+2. Optionally edit the output directory (default: `~/claude-logs`):
+  ```bash
+  vim ~/.config/systemd/user/claude-conversation-extractor.service
+  ```
+
+3. Enable and start the timer:
+  ```bash
+  systemctl --user daemon-reload
+  systemctl --user enable --now claude-conversation-extractor.timer
+  ```
+
+### Verify
+
+```bash
+# Check the timer is active
+systemctl --user list-timers claude-conversation-extractor.timer
+
+# Run once manually to test
+systemctl --user start claude-conversation-extractor.service
+
+# View logs
+journalctl --user -u claude-conversation-extractor.service
+```
+
+### Change schedule
+
+Edit `~/.config/systemd/user/claude-conversation-extractor.timer` and change `OnCalendar=`:
+
+```ini
+OnCalendar=*-*-* 04:00:00     # once a day at 04:00 (default)
+OnCalendar=hourly              # every hour
+OnCalendar=*-*-* 06,18:00:00  # twice a day at 06:00 and 18:00
+```
+
+Then reload: `systemctl --user daemon-reload`.
+
 ## 📁 Where Are Claude Code Logs Stored?
 
 ### Claude Code Default Locations:
@@ -343,7 +391,6 @@ See [INSTALL.md](docs/user/INSTALL.md) for:
 
 ### 🚧 Planned Features
 - [ ] Export to PDF format
-- [ ] Automated daily backups of Claude conversations
 - [ ] Integration with Obsidian, Notion, Roam
 - [ ] Watch mode for auto-export of new conversations
 - [ ] Filter by date range (--after, --before flags)
