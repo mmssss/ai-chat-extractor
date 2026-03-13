@@ -43,19 +43,10 @@ All defined in `pyproject.toml` under `[project.scripts]`:
 
 1. Always create feature branches for new work
 2. Ensure code passes flake8 linting (max-line-length=100)
-3. Test manually before committing
-4. Update version numbers in setup.py for releases
-5. Create detailed commit messages
-
-## Current Status
-
-- ✅ Core functionality complete and tested
-- ✅ Professional documentation
-- ✅ Published to GitHub & PyPI
-- ✅ Multiple export formats (Markdown, JSON, HTML)
-- ✅ Real-time search, interactive UI, detailed mode
-- ✅ Subagent conversation extraction
-- ✅ 97% test coverage
+3. When trying to run any python command/script (e.g. tests), activate the venv in the project root: `source .venv/bin/activate`
+4. Test manually before committing
+5. Update version numbers in setup.py for releases
+6. Create detailed commit messages
 
 ## Testing Commands
 
@@ -82,14 +73,6 @@ pip install -e .
 - Cross-platform (Windows, macOS, Linux)
 - Read-only access to Claude's conversation files
 - Includes legal disclaimer for safety
-
-## Marketing/Sharing Plan
-
-- Anthropic Discord
-- r/ClaudeAI subreddit
-- Hacker News
-- Twitter/X with relevant hashtags
-- Create demo GIF showing the tool in action
 
 ## Version History
 
