@@ -87,7 +87,7 @@ REM Install Claude Conversation Extractor
 pipx install claude-conversation-extractor
 
 REM Export Claude Code conversations:
-claude-logs
+claude-extract
 ```
 
 #### Method 2: PowerShell Installation for Claude Export
@@ -307,11 +307,11 @@ Include these details when reporting Claude export problems:
 ## Quick Reference - Claude Export Commands
 
 After installation, these commands export Claude Code conversations:
-- `claude-extract` - Interactive UI to export Claude conversations (recommended)
-- `claude-search` - Real-time search across all Claude conversations
+- `claude-extract` - Main command: interactive UI when run bare, full CLI with flags (recommended)
+- `claude-search` - Quick search across all Claude conversations
 - `claude-extract --all` - Export all Claude Code conversations at once
 - `claude-extract --recent 10` - Export last 10 Claude sessions
-- `claude-start` - Alias for claude-extract (same functionality)
+- `claude-start` / `claude-logs` - Aliases for `claude-extract` (backward compatibility)
 
 ---
 

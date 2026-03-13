@@ -18,15 +18,26 @@ markdown files. This is the FIRST publicly available solution for this problem.
 
 ```text
 claude-conversation-extractor/
-├── extract_claude_logs.py    # Main script
-├── setup.py                   # PyPI packaging configuration
-├── README.md                  # Professional documentation
-├── LICENSE                    # MIT License with disclaimer
-├── CONTRIBUTING.md            # Contribution guidelines
-├── requirements.txt           # No dependencies (stdlib only)
-├── .gitignore                # Python gitignore
-└── CLAUDE.md                 # This file
+├── src/
+│   ├── extract_claude_logs.py   # Main extractor + CLI entry point
+│   ├── interactive_ui.py        # Interactive terminal UI
+│   ├── search_conversations.py  # Search engine
+│   ├── realtime_search.py       # Real-time search UI
+│   └── search_cli.py            # claude-search entry point
+├── tests/                       # Test suite
+├── docs/                        # Documentation
+├── pyproject.toml               # Package configuration & entry points
+├── setup.py                     # Legacy packaging (PyPI)
+├── README.md                    # Main documentation
+└── LICENSE                      # MIT License
 ```
+
+## Entry Points
+
+All defined in `pyproject.toml` under `[project.scripts]`:
+- `claude-extract` → `extract_claude_logs:launch_interactive` (primary command)
+- `claude-search` → `search_cli:main` (dedicated search shortcut)
+- `claude-start` / `claude-logs` → same as `claude-extract` (aliases)
 
 ## Development Workflow
 
@@ -40,30 +51,27 @@ claude-conversation-extractor/
 
 - ✅ Core functionality complete and tested
 - ✅ Professional documentation
-- ✅ Published to GitHub:
-  <https://github.com/ZeroSumQuant/claude-conversation-extractor>
-- 🚧 Setting up PyPI publishing
-- 📋 TODO: Add tests, CI/CD, screenshots
-
-## PyPI Publishing Setup (In Progress)
-
-1. Update setup.py with proper metadata
-2. Create pyproject.toml for modern packaging
-3. Set up GitHub Actions for automated publishing
-4. Register on PyPI and get API token
-5. Configure repository secrets
+- ✅ Published to GitHub & PyPI
+- ✅ Multiple export formats (Markdown, JSON, HTML)
+- ✅ Real-time search, interactive UI, detailed mode
+- ✅ Subagent conversation extraction
+- ✅ 97% test coverage
 
 ## Testing Commands
 
 ```bash
-# Test extraction
-python3 extract_claude_logs.py --list
-python3 extract_claude_logs.py --extract 1
+# Run tests
+pytest
+
+# Test extraction via installed commands
+claude-extract --list
+claude-extract --extract 1
+claude-search "test query"
 
 # Lint check
-python3 -m flake8 extract_claude_logs.py --max-line-length=100
+flake8 . --max-line-length=100
 
-# Test installation
+# Install in development mode
 pip install -e .
 ```
 
@@ -85,7 +93,4 @@ pip install -e .
 
 ## Version History
 
-- 1.0.0 - Initial release (planned)
-  - Core extraction functionality
-  - Multiple output formats
-  - Batch operations
+See [CHANGELOG.md](../user/CHANGELOG.md) for full version history.

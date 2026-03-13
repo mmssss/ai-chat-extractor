@@ -2,10 +2,11 @@
 
 > 🚀 **The ONLY tool to export Claude Code conversations**. Extract Claude chat history from ~/.claude/projects, search through logs, and backup your AI programming sessions.
 
-## 🎮 Two Ways to Use
+## 🎮 Commands
 
-- **`claude-start`** - Interactive UI with ASCII art logo, real-time search, and menu-driven interface (recommended)
-- **`claude-extract`** - Plain CLI for command-line operations and scripting
+- **`claude-extract`** - Main command: interactive UI when run bare, full CLI with flags (recommended)
+- **`claude-search`** - Quick search across all conversations from the command line
+- **`claude-start`** / **`claude-logs`** - Aliases for `claude-extract` (backward compatibility)
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -109,16 +110,13 @@ pipx install claude-conversation-extractor
 
 ### Quick Start - Export Claude Conversations
 ```bash
-# Run the interactive UI with ASCII art logo and real-time search
-claude-start
-
-# Run the standard CLI interface
+# Launch the interactive UI (ASCII art logo, menu-driven, real-time search)
 claude-extract
 
 # Search for specific content directly
 claude-search "API integration"
 
-# Note: claude-logs also works for backward compatibility
+# Note: claude-start and claude-logs are aliases for claude-extract
 ```
 
 That's it! The tool will:
@@ -130,9 +128,6 @@ That's it! The tool will:
 
 ```bash
 # Interactive mode with UI - easiest way to export Claude conversations
-claude-start
-
-# CLI mode - command-line interface
 claude-extract
 
 # List all Claude Code conversations

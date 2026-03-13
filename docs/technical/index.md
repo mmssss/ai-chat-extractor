@@ -13,7 +13,7 @@ Claude Code stores all your AI programming conversations in `~/.claude/projects/
 pipx install claude-conversation-extractor
 
 # Export your Claude conversations
-claude-logs
+claude-extract
 ```
 
 That's it! The tool automatically finds all your Claude Code logs and lets you:
@@ -46,7 +46,7 @@ That's it! The tool automatically finds all your Claude Code logs and lets you:
 Search your entire Claude Code history as you type. No flags, no commands - just start typing and see results instantly.
 
 ### 📦 Bulk Export
-Export all your Claude conversations at once with `claude-logs --all`. Perfect for backing up before uninstalling or switching machines.
+Export all your Claude conversations at once with `claude-extract --all`. Perfect for backing up before uninstalling or switching machines.
 
 ### 🎯 Smart Selection
 Interactive UI lets you select exactly which Claude sessions to export. See dates, sizes, and preview content.
@@ -62,19 +62,19 @@ Works wherever Claude Code works - Windows, macOS, Linux. Same commands, same re
 ### Quick Start
 ```bash
 # Interactive mode (recommended)
-claude-logs
+claude-extract
 
 # List all conversations
-claude-logs --list
+claude-extract --list
 
 # Export specific conversations
-claude-logs --extract 1,3,5
+claude-extract --extract 1,3,5
 
 # Export recent conversations
-claude-logs --recent 10
+claude-extract --recent 10
 
 # Export everything
-claude-logs --all
+claude-extract --all
 ```
 
 ### Where Are Claude Code Logs Stored?
@@ -115,13 +115,13 @@ pip install claude-conversation-extractor
 ## Frequently Asked Questions
 
 ### Q: How do I export Claude Code conversations?
-A: Install our tool with `pipx install claude-conversation-extractor` then run `claude-logs`. It automatically finds and exports your conversations.
+A: Install our tool with `pipx install claude-conversation-extractor` then run `claude-extract`. It automatically finds and exports your conversations.
 
 ### Q: Where does Claude Code store conversations?
 A: Claude Code saves chats in `~/.claude/projects/` as JSONL files. There's no built-in way to export them - that's why this tool exists.
 
 ### Q: Can I search my Claude Code history?
-A: Yes! Run `claude-logs search` and start typing. Results appear in real-time.
+A: Yes! Run `claude-search` and start typing. Results appear in real-time.
 
 ### Q: Does this work with Claude.ai?
 A: No, this tool is specifically for Claude Code (the desktop app). Claude.ai has its own export feature.
@@ -143,7 +143,7 @@ Don't risk losing your Claude Code conversations. Install the extractor today:
 
 ```bash
 pipx install claude-conversation-extractor
-claude-logs
+claude-extract
 ```
 
 **Links:**
