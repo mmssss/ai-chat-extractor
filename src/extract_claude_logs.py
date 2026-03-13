@@ -30,9 +30,18 @@ class ClaudeConversationExtractor:
       - formatters: output formatting (markdown, JSON, HTML), filename generation
     """
 
-    def __init__(self, output_dir: Optional[Path] = None):
-        """Initialize the extractor with Claude's directory and output location."""
-        self.claude_dir = Path.home() / ".claude" / "projects"
+    def __init__(self, output_dir: Optional[Path] = None, source_dir: Optional[Path] = None):
+        """Initialize the extractor with Claude's directory and output location.
+
+        Args:
+            output_dir: Directory to save exported files to.
+            source_dir: Override the default ~/.claude/projects/ source directory.
+                        Useful for reading synced remote logs.
+        """
+        if source_dir:
+            self.claude_dir = Path(source_dir)
+        else:
+            self.claude_dir = Path.home() / ".claude" / "projects"
 
         if output_dir:
             self.output_dir = Path(output_dir)
@@ -292,7 +301,7 @@ class ClaudeConversationExtractor:
         sessions = self.find_sessions()
 
         if not sessions:
-            print("❌ No Claude sessions found in ~/.claude/projects/")
+            print(f"❌ No Claude sessions found in {self.claude_dir}")
             print("💡 Make sure you've used Claude Code and have conversations saved.")
             return []
 
@@ -433,6 +442,7 @@ Examples:
   %(prog)s --format json --all       # Export all as JSON
   %(prog)s --format html --extract 1 # Export session 1 as HTML
   %(prog)s --detailed --extract 1    # Include tool use & system messages
+  %(prog)s --source-dir ~/remote-logs/server1/projects/ --list  # List remote sessions
         """,
     )
     parser.add_argument("--list", action="store_true", help="List recent sessions")
@@ -510,6 +520,12 @@ Examples:
         action="store_true",
         help="Exclude subagent (task) conversations from extraction",
     )
+    parser.add_argument(
+        "--source-dir",
+        type=str,
+        help="Source directory to read conversations from (default: ~/.claude/projects/). "
+        "Useful for reading logs synced from remote servers via claude-sync.",
+    )
 
     args = parser.parse_args()
 
@@ -520,8 +536,8 @@ Examples:
         interactive_main()
         return
 
-    # Initialize extractor with optional output directory
-    extractor = ClaudeConversationExtractor(args.output)
+    # Initialize extractor with optional output/source directories
+    extractor = ClaudeConversationExtractor(args.output, source_dir=args.source_dir)
 
     # Handle search mode
     if args.search or args.search_regex:
