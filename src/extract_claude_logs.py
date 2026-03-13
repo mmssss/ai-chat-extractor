@@ -9,6 +9,8 @@ readable markdown files.
 
 import argparse
 import json
+import re
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -52,8 +54,14 @@ class ClaudeConversationExtractor:
 
         print(f"📁 Saving logs to: {self.output_dir}")
 
-    def find_sessions(self, project_path: Optional[str] = None) -> List[Path]:
-        """Find all JSONL session files, sorted by most recent first."""
+    def find_sessions(self, project_path: Optional[str] = None, include_subagents: bool = False) -> List[Path]:
+        """Find all JSONL session files, sorted by most recent first.
+        
+        Args:
+            project_path: Optional project subdirectory to search in
+            include_subagents: If True, include subagent JSONL files in results.
+                              If False (default), only return main conversation files.
+        """
         if project_path:
             search_dir = self.claude_dir / project_path
         else:
@@ -62,8 +70,418 @@ class ClaudeConversationExtractor:
         sessions = []
         if search_dir.exists():
             for jsonl_file in search_dir.rglob("*.jsonl"):
+                if not include_subagents and "/subagents/" in str(jsonl_file):
+                    continue
                 sessions.append(jsonl_file)
         return sorted(sessions, key=lambda x: x.stat().st_mtime, reverse=True)
+
+    def find_subagents(self, session_path: Path) -> List[Path]:
+        """Find all subagent JSONL files associated with a main conversation.
+        
+        Args:
+            session_path: Path to the main conversation JSONL file
+            
+        Returns:
+            List of paths to subagent JSONL files, sorted by modification time
+        """
+        session_id = session_path.stem
+        session_dir = session_path.parent / session_id
+        subagents_dir = session_dir / "subagents"
+        
+        if not subagents_dir.exists():
+            return []
+        
+        subagent_files = sorted(
+            [f for f in subagents_dir.glob("agent-*.jsonl")],
+            key=lambda x: x.stat().st_mtime
+        )
+        return subagent_files
+
+    def get_subagent_metadata(self, subagent_path: Path) -> Dict:
+        """Get metadata for a subagent from its .meta.json file and JSONL content.
+        
+        Args:
+            subagent_path: Path to the subagent JSONL file
+            
+        Returns:
+            Dict with agent metadata: agentId, agentType, first_message, entry_count, etc.
+        """
+        meta = {
+            "agentId": "",
+            "agentType": "unknown",
+            "first_message": "",
+            "entry_count": 0,
+            "first_timestamp": "",
+            "last_timestamp": "",
+        }
+        
+        # Extract agentId from filename: agent-<agentId>.jsonl
+        filename = subagent_path.stem  # agent-<agentId>
+        if filename.startswith("agent-"):
+            meta["agentId"] = filename[6:]
+        
+        # Read .meta.json if it exists
+        meta_json_path = subagent_path.with_suffix(".meta.json")
+        if meta_json_path.exists():
+            try:
+                with open(meta_json_path, "r", encoding="utf-8") as f:
+                    meta_data = json.load(f)
+                    meta["agentType"] = meta_data.get("agentType", "unknown")
+            except Exception:
+                pass
+        
+        # Read first user message and timestamps from JSONL
+        try:
+            with open(subagent_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line.strip())
+                        meta["entry_count"] += 1
+                        
+                        ts = entry.get("timestamp", "")
+                        if ts and not meta["first_timestamp"]:
+                            meta["first_timestamp"] = ts
+                        if ts:
+                            meta["last_timestamp"] = ts
+                        
+                        # Get first user message as description
+                        if not meta["first_message"] and entry.get("type") == "user":
+                            msg = entry.get("message", {})
+                            if isinstance(msg, dict):
+                                content = msg.get("content", "")
+                                text = self._extract_text_content(content)
+                                if text:
+                                    meta["first_message"] = text[:200]
+                    except json.JSONDecodeError:
+                        continue
+        except Exception:
+            pass
+        
+        return meta
+
+    @staticmethod
+    def _is_ide_preamble(text: str) -> bool:
+        """Check if text is an IDE-generated preamble rather than real user input."""
+        preamble_patterns = [
+            "The user opened the file",
+            "The user selected the lines",
+            "The user is currently viewing",
+            "The user has the following",
+            "Caveat: The messages below",
+        ]
+        return any(text.startswith(p) for p in preamble_patterns)
+
+    @staticmethod
+    def _clean_slash_command(text: str) -> str:
+        """Clean up slash command text that gets duplicated by IDE.
+        
+        The IDE sometimes produces: '/command             command             args'
+        This cleans it to: '/command args'
+        
+        Also handles non-slash duplicates: 'extra-usage             extra-usage'
+        """
+        # Slash command with duplicate: /word<whitespace>word<whitespace>rest
+        match = re.match(r'^/(\S+)\s+\1(?:\s+(.*))?$', text, re.DOTALL)
+        if match:
+            rest = (match.group(2) or "").strip()
+            return f"/{match.group(1)} {rest}".strip() if rest else f"/{match.group(1)}"
+        # Non-slash duplicate: word<whitespace>word
+        match = re.match(r'^(\S+)\s+\1(?:\s+(.*))?$', text, re.DOTALL)
+        if match:
+            rest = (match.group(2) or "").strip()
+            return f"{match.group(1)} {rest}".strip() if rest else match.group(1)
+        return text
+
+    @staticmethod
+    def _extract_first_user_text(jsonl_path: Path) -> str:
+        """Extract the first meaningful user message text from a JSONL file.
+        
+        Skips meta messages, IDE preambles, tool results, interruptions,
+        and system continuations. Returns empty string if no meaningful
+        message found.
+        """
+        try:
+            with open(jsonl_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        data = json.loads(line.strip())
+                        if data.get("type") != "user" or "message" not in data:
+                            continue
+                        # Skip meta entries (local commands, etc.)
+                        if data.get("isMeta"):
+                            continue
+                        msg = data["message"]
+                        if not isinstance(msg, dict) or msg.get("role") != "user":
+                            continue
+                        content = msg.get("content", "")
+                        
+                        if isinstance(content, list):
+                            for item in content:
+                                if not isinstance(item, dict) or item.get("type") != "text":
+                                    continue
+                                text = item.get("text", "").strip()
+                                # Skip tool results
+                                if text.startswith("tool_use_id"):
+                                    continue
+                                # Skip interruptions
+                                if "[Request interrupted" in text:
+                                    continue
+                                # Skip session continuations
+                                if "session is being continued" in text.lower():
+                                    continue
+                                # Remove XML-like tags and ANSI escape codes
+                                text = re.sub(r'<[^>]+>', '', text).strip()
+                                text = re.sub(r'\x1b\[[0-9;]*m', '', text).strip()
+                                # Skip command outputs
+                                if "is running" in text and "…" in text:
+                                    continue
+                                # Skip IDE-generated preambles
+                                if ClaudeConversationExtractor._is_ide_preamble(text):
+                                    continue
+                                # Clean up slash command duplication
+                                text = ClaudeConversationExtractor._clean_slash_command(text)
+                                # Skip bare slash commands (e.g. /help, /config, /sandbox)
+                                if re.match(r'^/\w+$', text):
+                                    continue
+                                if text and len(text) > 3:
+                                    return text[:100].replace('\n', ' ').strip()
+                        elif isinstance(content, str):
+                            text = content.strip()
+                            text = re.sub(r'<[^>]+>', '', text).strip()
+                            text = re.sub(r'\x1b\[[0-9;]*m', '', text).strip()
+                            if "is running" in text and "…" in text:
+                                continue
+                            if "session is being continued" in text.lower():
+                                continue
+                            if ClaudeConversationExtractor._is_ide_preamble(text):
+                                continue
+                            text = ClaudeConversationExtractor._clean_slash_command(text)
+                            # Skip bare slash commands
+                            if re.match(r'^/\w+$', text):
+                                continue
+                            if not text.startswith("tool_use_id") and "[Request interrupted" not in text:
+                                if text and len(text) > 3:
+                                    return text[:100].replace('\n', ' ').strip()
+                    except json.JSONDecodeError:
+                        continue
+        except Exception:
+            pass
+        return ""
+
+    @staticmethod
+    def extract_session_metadata(jsonl_path: Path) -> Dict:
+        """Extract all available metadata from a conversation JSONL file.
+        
+        Returns dict with: slug, custom_title, first_user_message, sessionId,
+        first_timestamp, last_timestamp, models, version, gitBranch, cwd,
+        project_path, entry_count, has_subagents, subagent_count
+        """
+        metadata = {
+            "slug": "",
+            "custom_title": "",
+            "first_user_message": "",
+            "sessionId": "",
+            "first_timestamp": "",
+            "last_timestamp": "",
+            "models": set(),
+            "version": "",
+            "gitBranch": "",
+            "cwd": "",
+            "project_path": "",
+            "entry_count": 0,
+            "has_subagents": False,
+            "subagent_count": 0,
+            "has_errors": False,
+        }
+        
+        # Derive project from directory name
+        metadata["project_path"] = jsonl_path.parent.name
+        metadata["sessionId"] = jsonl_path.stem
+        
+        # Check for subagents directory
+        session_dir = jsonl_path.parent / jsonl_path.stem
+        subagents_dir = session_dir / "subagents"
+        if subagents_dir.exists():
+            sa_files = list(subagents_dir.glob("agent-*.jsonl"))
+            metadata["has_subagents"] = len(sa_files) > 0
+            metadata["subagent_count"] = len(sa_files)
+        
+        try:
+            with open(jsonl_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line.strip())
+                        metadata["entry_count"] += 1
+                        
+                        # Custom title (user-set via /rename command)
+                        # The last one wins (user may rename multiple times)
+                        if entry.get("type") == "custom-title":
+                            title = entry.get("title", "") or entry.get("customTitle", "")
+                            if title:
+                                metadata["custom_title"] = title
+                        
+                        # Slug (random internal name)
+                        if not metadata["slug"] and entry.get("slug"):
+                            metadata["slug"] = entry["slug"]
+                        
+                        # Timestamps
+                        ts = entry.get("timestamp", "")
+                        if ts and not metadata["first_timestamp"]:
+                            metadata["first_timestamp"] = ts
+                        if ts:
+                            metadata["last_timestamp"] = ts
+                        
+                        # Version
+                        if not metadata["version"] and entry.get("version"):
+                            metadata["version"] = entry["version"]
+                        
+                        # Git branch
+                        if not metadata["gitBranch"] and entry.get("gitBranch"):
+                            metadata["gitBranch"] = entry["gitBranch"]
+                        
+                        # Working directory
+                        if not metadata["cwd"] and entry.get("cwd"):
+                            metadata["cwd"] = entry["cwd"]
+                        
+                        # Models used
+                        if entry.get("type") == "assistant" and isinstance(entry.get("message"), dict):
+                            model = entry["message"].get("model", "")
+                            if model and model != "<synthetic>":
+                                metadata["models"].add(model)
+                        
+                        # Errors
+                        if entry.get("error") or entry.get("isApiErrorMessage"):
+                            metadata["has_errors"] = True
+                        
+                    except json.JSONDecodeError:
+                        continue
+        except Exception:
+            pass
+        
+        # Convert set to sorted list for serialization
+        metadata["models"] = sorted(metadata["models"])
+        
+        # Extract first user message (separate pass for clarity)
+        metadata["first_user_message"] = ClaudeConversationExtractor._extract_first_user_text(jsonl_path)
+        
+        return metadata
+
+    @staticmethod
+    def slugify(text: str) -> str:
+        """Convert text to a URL/filename-safe slug.
+        
+        Examples:
+            'glistening-foraging-snail' -> 'glistening-foraging-snail'
+            'My Cool Conversation!' -> 'my-cool-conversation'
+            'Fix bug in auth/login.py' -> 'fix-bug-in-auth-login-py'
+        """
+        # Normalize unicode characters
+        text = unicodedata.normalize("NFKD", text)
+        # Convert to lowercase
+        text = text.lower()
+        # Replace any non-alphanumeric chars (except hyphens) with hyphens
+        text = re.sub(r"[^a-z0-9\-]", "-", text)
+        # Collapse multiple hyphens
+        text = re.sub(r"-+", "-", text)
+        # Strip leading/trailing hyphens
+        text = text.strip("-")
+        # Truncate to reasonable length for filenames
+        if len(text) > 60:
+            text = text[:60].rstrip("-")
+        return text
+
+    def _slug_from_metadata(self, metadata: Dict) -> str:
+        """Derive a filename slug from metadata, with priority chain:
+        
+        1. custom_title (user-set via /rename)
+        2. first_user_message (content-based)
+        3. session ID prefix (fallback)
+        """
+        if metadata.get("custom_title"):
+            return self.slugify(metadata["custom_title"])
+        if metadata.get("first_user_message"):
+            return self.slugify(metadata["first_user_message"])
+        return metadata.get("sessionId", "unknown")[:8]
+
+    def generate_filename(self, session_path: Path, format: str = "markdown") -> str:
+        """Generate output filename from conversation metadata.
+        
+        Format: 20260311T0818_claude_<slug>.<ext>
+        
+        Priority for slug:
+        1. custom_title — user-set name via /rename command
+        2. first_user_message — slugified first meaningful user message
+        3. session ID prefix — first 8 chars of the UUID
+        
+        Args:
+            session_path: Path to the JSONL file
+            format: Output format ('markdown', 'json', 'html')
+            
+        Returns:
+            Generated filename string
+        """
+        ext_map = {"markdown": "md", "json": "json", "html": "html"}
+        ext = ext_map.get(format, "md")
+        
+        metadata = self.extract_session_metadata(session_path)
+        
+        # Build timestamp part
+        first_ts = metadata["first_timestamp"]
+        if first_ts:
+            try:
+                dt = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))
+                ts_part = dt.strftime("%Y%m%dT%H%M")
+            except Exception:
+                ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+        else:
+            ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+        
+        # Build slug part with priority chain
+        slug_part = self._slug_from_metadata(metadata)
+        
+        return f"{ts_part}_claude_{slug_part}.{ext}"
+
+    def generate_subagent_filename(
+        self, subagent_path: Path, parent_metadata: Dict, agent_index: int, format: str = "markdown"
+    ) -> str:
+        """Generate output filename for a subagent conversation.
+        
+        Format: 20260311T0818_claude_<parent-slug>_agent<N>_<agentId-short>.<ext>
+        
+        The parent slug uses the same priority chain as generate_filename:
+        custom_title → first_user_message → session ID prefix
+        
+        Args:
+            subagent_path: Path to the subagent JSONL file
+            parent_metadata: Metadata dict from the parent conversation
+            agent_index: 1-based index of this agent among siblings
+            format: Output format
+            
+        Returns:
+            Generated filename string
+        """
+        ext_map = {"markdown": "md", "json": "json", "html": "html"}
+        ext = ext_map.get(format, "md")
+        
+        # Use parent's timestamp
+        first_ts = parent_metadata.get("first_timestamp", "")
+        if first_ts:
+            try:
+                dt = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))
+                ts_part = dt.strftime("%Y%m%dT%H%M")
+            except Exception:
+                ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+        else:
+            ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+        
+        # Parent slug with priority chain
+        parent_slug = self._slug_from_metadata(parent_metadata)
+        
+        # Agent ID (short)
+        agent_meta = self.get_subagent_metadata(subagent_path)
+        agent_id_short = agent_meta["agentId"][:8] if agent_meta["agentId"] else "unknown"
+        
+        return f"{ts_part}_claude_{parent_slug}_agent{agent_index}_{agent_id_short}.{ext}"
 
     def extract_conversation(self, jsonl_path: Path, detailed: bool = False) -> List[Dict[str, str]]:
         """Extract conversation messages from a JSONL file.
@@ -285,9 +703,17 @@ class ClaudeConversationExtractor:
             input("\nPress Enter to continue...")
 
     def save_as_markdown(
-        self, conversation: List[Dict[str, str]], session_id: str
+        self, conversation: List[Dict[str, str]], session_id: str,
+        session_path: Optional[Path] = None, filename_override: Optional[str] = None
     ) -> Optional[Path]:
-        """Save conversation as clean markdown file."""
+        """Save conversation as clean markdown file.
+        
+        Args:
+            conversation: List of message dicts
+            session_id: Session identifier (UUID)
+            session_path: Optional path to JSONL file for metadata-based filename
+            filename_override: Optional explicit filename to use
+        """
         if not conversation:
             return None
 
@@ -306,7 +732,12 @@ class ClaudeConversationExtractor:
             date_str = datetime.now().strftime("%Y-%m-%d")
             time_str = ""
 
-        filename = f"claude-conversation-{date_str}-{session_id[:8]}.md"
+        if filename_override:
+            filename = filename_override
+        elif session_path:
+            filename = self.generate_filename(session_path, format="markdown")
+        else:
+            filename = f"claude-conversation-{date_str}-{session_id[:8]}.md"
         output_path = self.output_dir / filename
 
         with open(output_path, "w", encoding="utf-8") as f:
@@ -344,9 +775,17 @@ class ClaudeConversationExtractor:
         return output_path
     
     def save_as_json(
-        self, conversation: List[Dict[str, str]], session_id: str
+        self, conversation: List[Dict[str, str]], session_id: str,
+        session_path: Optional[Path] = None, filename_override: Optional[str] = None
     ) -> Optional[Path]:
-        """Save conversation as JSON file."""
+        """Save conversation as JSON file.
+        
+        Args:
+            conversation: List of message dicts
+            session_id: Session identifier (UUID)
+            session_path: Optional path to JSONL file for metadata-based filename
+            filename_override: Optional explicit filename to use
+        """
         if not conversation:
             return None
 
@@ -361,7 +800,12 @@ class ClaudeConversationExtractor:
         else:
             date_str = datetime.now().strftime("%Y-%m-%d")
 
-        filename = f"claude-conversation-{date_str}-{session_id[:8]}.json"
+        if filename_override:
+            filename = filename_override
+        elif session_path:
+            filename = self.generate_filename(session_path, format="json")
+        else:
+            filename = f"claude-conversation-{date_str}-{session_id[:8]}.json"
         output_path = self.output_dir / filename
 
         # Create JSON structure
@@ -378,9 +822,17 @@ class ClaudeConversationExtractor:
         return output_path
     
     def save_as_html(
-        self, conversation: List[Dict[str, str]], session_id: str
+        self, conversation: List[Dict[str, str]], session_id: str,
+        session_path: Optional[Path] = None, filename_override: Optional[str] = None
     ) -> Optional[Path]:
-        """Save conversation as HTML file with syntax highlighting."""
+        """Save conversation as HTML file with syntax highlighting.
+        
+        Args:
+            conversation: List of message dicts
+            session_id: Session identifier (UUID)
+            session_path: Optional path to JSONL file for metadata-based filename
+            filename_override: Optional explicit filename to use
+        """
         if not conversation:
             return None
 
@@ -398,7 +850,12 @@ class ClaudeConversationExtractor:
             date_str = datetime.now().strftime("%Y-%m-%d")
             time_str = ""
 
-        filename = f"claude-conversation-{date_str}-{session_id[:8]}.html"
+        if filename_override:
+            filename = filename_override
+        elif session_path:
+            filename = self.generate_filename(session_path, format="html")
+        else:
+            filename = f"claude-conversation-{date_str}-{session_id[:8]}.html"
         output_path = self.output_dir / filename
 
         # HTML template with modern styling
@@ -523,7 +980,8 @@ class ClaudeConversationExtractor:
         return output_path
 
     def save_conversation(
-        self, conversation: List[Dict[str, str]], session_id: str, format: str = "markdown"
+        self, conversation: List[Dict[str, str]], session_id: str, format: str = "markdown",
+        session_path: Optional[Path] = None, filename_override: Optional[str] = None
     ) -> Optional[Path]:
         """Save conversation in the specified format.
         
@@ -531,13 +989,16 @@ class ClaudeConversationExtractor:
             conversation: The conversation data
             session_id: Session identifier
             format: Output format ('markdown', 'json', 'html')
+            session_path: Optional path to JSONL file for metadata-based filename
+            filename_override: Optional explicit filename to use
         """
+        kwargs = {"session_path": session_path, "filename_override": filename_override}
         if format == "markdown":
-            return self.save_as_markdown(conversation, session_id)
+            return self.save_as_markdown(conversation, session_id, **kwargs)
         elif format == "json":
-            return self.save_as_json(conversation, session_id)
+            return self.save_as_json(conversation, session_id, **kwargs)
         elif format == "html":
-            return self.save_as_html(conversation, session_id)
+            return self.save_as_html(conversation, session_id, **kwargs)
         else:
             print(f"❌ Unsupported format: {format}")
             return None
@@ -653,21 +1114,32 @@ class ClaudeConversationExtractor:
             
             # Get preview and message count
             preview, msg_count = self.get_conversation_preview(session)
+            
+            # Get metadata for slug and subagents
+            metadata = self.extract_session_metadata(session)
 
             # Print formatted info
             print(f"\n{i}. 📁 {project}")
+            if metadata["custom_title"]:
+                print(f"   🏷️  Title: {metadata['custom_title']}")
             print(f"   📄 Session: {session_id[:8]}...")
             print(f"   📅 Modified: {modified.strftime('%Y-%m-%d %H:%M')}")
             print(f"   💬 Messages: {msg_count}")
             print(f"   💾 Size: {size_kb:.1f} KB")
+            if metadata["models"]:
+                print(f"   🧠 Models: {', '.join(metadata['models'])}")
+            if metadata["has_subagents"]:
+                print(f"   🤖 Subagents: {metadata['subagent_count']}")
             print(f"   📝 Preview: \"{preview}...\"")
+            print(f"   📎 Output: {self.generate_filename(session)}")
 
         print("\n" + "=" * 80)
         return sessions[:limit]
 
     def extract_multiple(
         self, sessions: List[Path], indices: List[int], 
-        format: str = "markdown", detailed: bool = False
+        format: str = "markdown", detailed: bool = False,
+        include_subagents: bool = True
     ) -> Tuple[int, int]:
         """Extract multiple sessions by index.
         
@@ -676,6 +1148,7 @@ class ClaudeConversationExtractor:
             indices: Indices to extract
             format: Output format ('markdown', 'json', 'html')
             detailed: If True, include tool use and system messages
+            include_subagents: If True (default), also extract subagent conversations
         """
         success = 0
         total = len(indices)
@@ -685,13 +1158,38 @@ class ClaudeConversationExtractor:
                 session_path = sessions[idx]
                 conversation = self.extract_conversation(session_path, detailed=detailed)
                 if conversation:
-                    output_path = self.save_conversation(conversation, session_path.stem, format=format)
+                    output_path = self.save_conversation(
+                        conversation, session_path.stem,
+                        format=format, session_path=session_path
+                    )
                     success += 1
                     msg_count = len(conversation)
                     print(
                         f"✅ {success}/{total}: {output_path.name} "
                         f"({msg_count} messages)"
                     )
+                    
+                    # Extract subagent conversations if requested
+                    if include_subagents:
+                        subagents = self.find_subagents(session_path)
+                        if subagents:
+                            parent_meta = self.extract_session_metadata(session_path)
+                            print(f"   🤖 Found {len(subagents)} subagent(s)")
+                            for sa_idx, sa_path in enumerate(subagents, 1):
+                                sa_conversation = self.extract_conversation(sa_path, detailed=detailed)
+                                if sa_conversation:
+                                    sa_filename = self.generate_subagent_filename(
+                                        sa_path, parent_meta, sa_idx, format=format
+                                    )
+                                    sa_output = self.save_conversation(
+                                        sa_conversation, sa_path.stem,
+                                        format=format, filename_override=sa_filename
+                                    )
+                                    sa_meta = self.get_subagent_metadata(sa_path)
+                                    print(
+                                        f"   └─ 🤖 Agent {sa_idx}: {sa_output.name} "
+                                        f"({len(sa_conversation)} msgs, type={sa_meta['agentType']})"
+                                    )
                 else:
                     print(f"⏭️  Skipped session {idx + 1} (no conversation)")
             else:
@@ -785,6 +1283,11 @@ Examples:
         "--detailed",
         action="store_true",
         help="Include tool use, MCP responses, and system messages in export"
+    )
+    parser.add_argument(
+        "--no-subagents",
+        action="store_true",
+        help="Exclude subagent (task) conversations from extraction"
     )
 
     args = parser.parse_args()
@@ -888,12 +1391,10 @@ Examples:
                             conversation = extractor.extract_conversation(selected_path, detailed=args.detailed)
                             if conversation:
                                 session_id = selected_path.stem
-                                if args.format == "json":
-                                    output = extractor.save_as_json(conversation, session_id)
-                                elif args.format == "html":
-                                    output = extractor.save_as_html(conversation, session_id)
-                                else:
-                                    output = extractor.save_as_markdown(conversation, session_id)
+                                output = extractor.save_conversation(
+                                    conversation, session_id,
+                                    format=args.format, session_path=selected_path
+                                )
                                 print(f"✅ Saved: {output.name}")
             except (EOFError, KeyboardInterrupt):
                 print("\n👋 Cancelled")
@@ -933,8 +1434,11 @@ Examples:
             print(f"\n📤 Extracting {len(indices)} session(s) as {args.format.upper()}...")
             if args.detailed:
                 print("📋 Including detailed tool use and system messages")
+            if args.no_subagents:
+                print("⏭️  Excluding subagent conversations")
             success, total = extractor.extract_multiple(
-                sessions, indices, format=args.format, detailed=args.detailed
+                sessions, indices, format=args.format, detailed=args.detailed,
+                include_subagents=not args.no_subagents
             )
             print(f"\n✅ Successfully extracted {success}/{total} sessions")
 
@@ -944,10 +1448,13 @@ Examples:
         print(f"\n📤 Extracting {limit} most recent sessions as {args.format.upper()}...")
         if args.detailed:
             print("📋 Including detailed tool use and system messages")
+        if args.no_subagents:
+            print("⏭️  Excluding subagent conversations")
 
         indices = list(range(limit))
         success, total = extractor.extract_multiple(
-            sessions, indices, format=args.format, detailed=args.detailed
+            sessions, indices, format=args.format, detailed=args.detailed,
+            include_subagents=not args.no_subagents
         )
         print(f"\n✅ Successfully extracted {success}/{total} sessions")
 
@@ -956,10 +1463,13 @@ Examples:
         print(f"\n📤 Extracting all {len(sessions)} sessions as {args.format.upper()}...")
         if args.detailed:
             print("📋 Including detailed tool use and system messages")
+        if args.no_subagents:
+            print("⏭️  Excluding subagent conversations")
 
         indices = list(range(len(sessions)))
         success, total = extractor.extract_multiple(
-            sessions, indices, format=args.format, detailed=args.detailed
+            sessions, indices, format=args.format, detailed=args.detailed,
+            include_subagents=not args.no_subagents
         )
         print(f"\n✅ Successfully extracted {success}/{total} sessions")
 
@@ -1005,7 +1515,9 @@ def launch_interactive():
                     conversation = extractor.extract_conversation(selected_file)
                     if conversation:
                         session_id = selected_file.stem
-                        output = extractor.save_as_markdown(conversation, session_id)
+                        output = extractor.save_as_markdown(
+                            conversation, session_id, session_path=selected_file
+                        )
                         print(f"✅ Saved: {output.name}")
             except (EOFError, KeyboardInterrupt):
                 print("\n👋 Cancelled")
