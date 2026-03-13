@@ -403,10 +403,21 @@ class ClaudeConversationExtractor:
             return self.slugify(metadata["first_user_message"])
         return metadata.get("sessionId", "unknown")[:8]
 
+    def _resolve_output_path(self, filename: str) -> Optional[Path]:
+        """Resolve output path, skipping if file already exists.
+        
+        Returns:
+            Path to write to, or None if the file already exists (skip).
+        """
+        path = self.output_dir / filename
+        if path.exists():
+            return None
+        return path
+
     def generate_filename(self, session_path: Path, format: str = "markdown") -> str:
         """Generate output filename from conversation metadata.
         
-        Format: 20260311T0818_claude_<slug>.<ext>
+        Format: 20260311T081823_claude_<slug>.<ext>
         
         Priority for slug:
         1. custom_title — user-set name via /rename command
@@ -430,11 +441,11 @@ class ClaudeConversationExtractor:
         if first_ts:
             try:
                 dt = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))
-                ts_part = dt.strftime("%Y%m%dT%H%M")
+                ts_part = dt.strftime("%Y%m%dT%H%M%S")
             except Exception:
-                ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+                ts_part = datetime.now().strftime("%Y%m%dT%H%M%S")
         else:
-            ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+            ts_part = datetime.now().strftime("%Y%m%dT%H%M%S")
         
         # Build slug part with priority chain
         slug_part = self._slug_from_metadata(metadata)
@@ -446,7 +457,7 @@ class ClaudeConversationExtractor:
     ) -> str:
         """Generate output filename for a subagent conversation.
         
-        Format: 20260311T0818_claude_<parent-slug>_agent<N>_<agentId-short>.<ext>
+        Format: 20260311T081823_claude_<parent-slug>_agent<N>_<agentId-short>.<ext>
         
         The parent slug uses the same priority chain as generate_filename:
         custom_title → first_user_message → session ID prefix
@@ -468,11 +479,11 @@ class ClaudeConversationExtractor:
         if first_ts:
             try:
                 dt = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))
-                ts_part = dt.strftime("%Y%m%dT%H%M")
+                ts_part = dt.strftime("%Y%m%dT%H%M%S")
             except Exception:
-                ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+                ts_part = datetime.now().strftime("%Y%m%dT%H%M%S")
         else:
-            ts_part = datetime.now().strftime("%Y%m%dT%H%M")
+            ts_part = datetime.now().strftime("%Y%m%dT%H%M%S")
         
         # Parent slug with priority chain
         parent_slug = self._slug_from_metadata(parent_metadata)
@@ -738,7 +749,9 @@ class ClaudeConversationExtractor:
             filename = self.generate_filename(session_path, format="markdown")
         else:
             filename = f"claude-conversation-{date_str}-{session_id[:8]}.md"
-        output_path = self.output_dir / filename
+        output_path = self._resolve_output_path(filename)
+        if output_path is None:
+            return None
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("# Claude Conversation Log\n\n")
@@ -806,7 +819,9 @@ class ClaudeConversationExtractor:
             filename = self.generate_filename(session_path, format="json")
         else:
             filename = f"claude-conversation-{date_str}-{session_id[:8]}.json"
-        output_path = self.output_dir / filename
+        output_path = self._resolve_output_path(filename)
+        if output_path is None:
+            return None
 
         # Create JSON structure
         output = {
@@ -856,7 +871,9 @@ class ClaudeConversationExtractor:
             filename = self.generate_filename(session_path, format="html")
         else:
             filename = f"claude-conversation-{date_str}-{session_id[:8]}.html"
-        output_path = self.output_dir / filename
+        output_path = self._resolve_output_path(filename)
+        if output_path is None:
+            return None
 
         # HTML template with modern styling
         html_content = f"""<!DOCTYPE html>
@@ -1151,6 +1168,7 @@ class ClaudeConversationExtractor:
             include_subagents: If True (default), also extract subagent conversations
         """
         success = 0
+        skipped = 0
         total = len(indices)
 
         for idx in indices:
@@ -1162,6 +1180,10 @@ class ClaudeConversationExtractor:
                         conversation, session_path.stem,
                         format=format, session_path=session_path
                     )
+                    if output_path is None:
+                        skipped += 1
+                        continue
+
                     success += 1
                     msg_count = len(conversation)
                     print(
@@ -1176,7 +1198,9 @@ class ClaudeConversationExtractor:
                             parent_meta = self.extract_session_metadata(session_path)
                             print(f"   🤖 Found {len(subagents)} subagent(s)")
                             for sa_idx, sa_path in enumerate(subagents, 1):
-                                sa_conversation = self.extract_conversation(sa_path, detailed=detailed)
+                                sa_conversation = self.extract_conversation(
+                                    sa_path, detailed=detailed
+                                )
                                 if sa_conversation:
                                     sa_filename = self.generate_subagent_filename(
                                         sa_path, parent_meta, sa_idx, format=format
@@ -1185,15 +1209,22 @@ class ClaudeConversationExtractor:
                                         sa_conversation, sa_path.stem,
                                         format=format, filename_override=sa_filename
                                     )
+                                    if sa_output is None:
+                                        skipped += 1
+                                        continue
                                     sa_meta = self.get_subagent_metadata(sa_path)
                                     print(
                                         f"   └─ 🤖 Agent {sa_idx}: {sa_output.name} "
-                                        f"({len(sa_conversation)} msgs, type={sa_meta['agentType']})"
+                                        f"({len(sa_conversation)} msgs, "
+                                        f"type={sa_meta['agentType']})"
                                     )
                 else:
                     print(f"⏭️  Skipped session {idx + 1} (no conversation)")
             else:
                 print(f"❌ Invalid session number: {idx + 1}")
+
+        if skipped:
+            print(f"⏭️  Skipped {skipped} already exported")
 
         return success, total
 
@@ -1395,7 +1426,10 @@ Examples:
                                     conversation, session_id,
                                     format=args.format, session_path=selected_path
                                 )
-                                print(f"✅ Saved: {output.name}")
+                                if output:
+                                    print(f"✅ Saved: {output.name}")
+                                else:
+                                    print("⏭️  Already exported, skipping")
             except (EOFError, KeyboardInterrupt):
                 print("\n👋 Cancelled")
         
@@ -1518,7 +1552,10 @@ def launch_interactive():
                         output = extractor.save_as_markdown(
                             conversation, session_id, session_path=selected_file
                         )
-                        print(f"✅ Saved: {output.name}")
+                        if output:
+                            print(f"✅ Saved: {output.name}")
+                        else:
+                            print("⏭️  Already exported, skipping")
             except (EOFError, KeyboardInterrupt):
                 print("\n👋 Cancelled")
     else:
