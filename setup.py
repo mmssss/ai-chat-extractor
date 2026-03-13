@@ -81,6 +81,9 @@ setup(
         "search_conversations",
         "realtime_search",
         "search_cli",
+        "parsers",
+        "metadata",
+        "formatters",
     ],
     entry_points={
         "console_scripts": [

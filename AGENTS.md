@@ -19,9 +19,12 @@ markdown files. This is the FIRST publicly available solution for this problem.
 ```text
 claude-conversation-extractor/
 ├── src/
-│   ├── extract_claude_logs.py   # Main extractor + CLI entry point
+│   ├── extract_claude_logs.py   # Orchestrator class + CLI entry point
+│   ├── parsers.py               # JSONL parsing, content/text extraction
+│   ├── metadata.py              # Session discovery, metadata extraction
+│   ├── formatters.py            # Output formatting (md/json/html), filenames
+│   ├── search_conversations.py  # Search engine (smart, exact, regex, semantic)
 │   ├── interactive_ui.py        # Interactive terminal UI
-│   ├── search_conversations.py  # Search engine
 │   ├── realtime_search.py       # Real-time search UI
 │   └── search_cli.py            # claude-search entry point
 ├── tests/                       # Test suite
@@ -31,6 +34,22 @@ claude-conversation-extractor/
 ├── README.md                    # Main documentation
 └── LICENSE                      # MIT License
 ```
+
+### Module Responsibilities
+
+- **`extract_claude_logs.py`** — Thin orchestrator (`ClaudeConversationExtractor` class)
+  that delegates to focused modules, plus CLI (`main()`) and `launch_interactive()`.
+- **`parsers.py`** — Pure functions for JSONL content parsing: `extract_conversation()`,
+  `extract_text_content()`, `get_conversation_preview()`, IDE preamble/slash-command cleanup.
+- **`metadata.py`** — Session discovery and metadata: `find_sessions()`, `find_subagents()`,
+  `extract_session_metadata()`, `get_subagent_metadata()`.
+- **`formatters.py`** — Output formatting: `save_as_markdown()`, `save_as_json()`,
+  `save_as_html()`, `slugify()`, `generate_filename()`.
+- **`search_conversations.py`** — `ConversationSearcher` with pluggable matcher pattern
+  and `SearchResult` dataclass.
+- **`interactive_ui.py`** — Terminal UI with folder selection, session menu, search integration.
+- **`realtime_search.py`** — Real-time search with keyboard handling and terminal display.
+- **`search_cli.py`** — Lightweight `claude-search` entry point.
 
 ## Entry Points
 
