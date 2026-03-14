@@ -442,7 +442,7 @@ Examples:
   %(prog)s --format json --all       # Export all as JSON
   %(prog)s --format html --extract 1 # Export session 1 as HTML
   %(prog)s --detailed --extract 1    # Include tool use & system messages
-  %(prog)s --source-dir ~/remote-logs/server1/projects/ --list  # List remote sessions
+  %(prog)s --source-dir ~/backups/myserver/.claude/projects/ --list  # List sessions from synced remote data
         """,
     )
     parser.add_argument("--list", action="store_true", help="List recent sessions")
@@ -523,8 +523,9 @@ Examples:
     parser.add_argument(
         "--source-dir",
         type=str,
-        help="Source directory to read conversations from (default: ~/.claude/projects/). "
-        "Useful for reading logs synced from remote servers via claude-sync.",
+        help="Path to a 'projects' directory containing Claude conversations "
+        "(default: ~/.claude/projects/). Use this to extract from a synced "
+        "remote backup, e.g. ~/backups/myserver/.claude/projects/",
     )
 
     args = parser.parse_args()
