@@ -64,6 +64,7 @@ env/
 .DS_Store
 
 # Project specific
+.claude
 claude-logs/
 *.md.backup
 test-output/
@@ -71,7 +72,7 @@ test-output/
 # Local testing
 test_conversations/
 local_tests/
-test_*.py
+/test_*.py
 
 # Database and cache files
 *.db
@@ -82,7 +83,6 @@ claude_extractor.db*
 # Build artifacts
 *.o
 *.dylib
-*.so
 *.log
 
 # Development files
@@ -93,5 +93,4 @@ RELEASE_NOTES_*.md
 PR_BODY.md
 
 # Cache directories
-.zig-cache/
 claude_ui/

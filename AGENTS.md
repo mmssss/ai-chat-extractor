@@ -66,6 +66,7 @@ All defined in `pyproject.toml` under `[project.scripts]`:
 4. Test manually before committing
 5. Update version numbers in setup.py for releases
 6. Create detailed commit messages
+7. Never add "Co-Authored-By" or similar AI attribution lines to commits
 
 ## Testing Commands
 

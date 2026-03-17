@@ -18,6 +18,116 @@ except ImportError:
     from metadata import extract_session_metadata, get_subagent_metadata
 
 
+def _find_min_heading_level(lines):
+    """Find the minimum ATX heading level outside code blocks, or None."""
+    min_level = None
+    in_code_block = False
+    for line in lines:
+        stripped = line.lstrip()
+        if not in_code_block:
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                in_code_block = True
+                continue
+        else:
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                in_code_block = False
+            continue
+        m = re.match(r'^(#{1,6})( |$)', line)
+        if m:
+            level = len(m.group(1))
+            if min_level is None or level < min_level:
+                min_level = level
+    return min_level
+
+
+def downlevel_headings(text: str, levels: int = None) -> str:
+    """Shift markdown headings down to prevent hierarchy collision.
+
+    The exported markdown uses # for the document title and ## for role headers
+    (User/Claude). Content headings must be pushed below ## so they don't
+    become siblings of — or even override — the document structure.
+
+    When ``levels`` is None (default), the shift is computed adaptively so the
+    shallowest content heading becomes h3.  An explicit ``levels`` value
+    overrides this and applies a fixed shift instead.
+
+    Only transforms ATX headings outside fenced code blocks.  Caps at h6.
+    """
+    lines = text.split('\n')
+
+    if levels is None:
+        min_level = _find_min_heading_level(lines)
+        if min_level is None or min_level >= 3:
+            return text  # nothing to shift
+        levels = 3 - min_level
+
+    result = []
+    in_code_block = False
+
+    for line in lines:
+        stripped = line.lstrip()
+        # Track fenced code blocks (``` or ~~~, optionally with language tag)
+        if not in_code_block:
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                in_code_block = True
+                result.append(line)
+                continue
+        else:
+            # Closing fence: must be at least as long as opening, no content after
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                in_code_block = False
+            result.append(line)
+            continue
+
+        # ATX heading: 1-6 '#' followed by space or end-of-line
+        m = re.match(r'^(#{1,6})( |$)', line)
+        if m:
+            old_level = len(m.group(1))
+            new_level = min(old_level + levels, 6)
+            line = '#' * new_level + line[old_level:]
+
+        result.append(line)
+
+    return '\n'.join(result)
+
+
+def escape_headings(text: str) -> str:
+    """Escape markdown heading syntax so '#' renders as literal text.
+
+    Users almost never write intentional markdown headings — a '#' at the
+    start of a line is typically a shell comment, pasted code, or a reference
+    to a document heading. Escaping with '\\#' preserves the original text
+    without creating spurious heading elements in the exported markdown.
+
+    Only escapes ATX heading patterns outside fenced code blocks.
+    """
+    lines = text.split('\n')
+    result = []
+    in_code_block = False
+
+    for line in lines:
+        stripped = line.lstrip()
+        if not in_code_block:
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                in_code_block = True
+                result.append(line)
+                continue
+        else:
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                in_code_block = False
+            result.append(line)
+            continue
+
+        # Escape ATX heading pattern: 1-6 '#' followed by space or end-of-line
+        m = re.match(r'^(#{1,6})( |$)', line)
+        if m:
+            line = '\\' + line
+
+        result.append(line)
+
+    return '\n'.join(result)
+
+
 def slugify(text: str) -> str:
     """Convert text to a URL/filename-safe slug.
 
@@ -198,15 +308,17 @@ def save_as_markdown(
         f.write(f"Date: {date_str}")
         if time_str:
             f.write(f" {time_str}")
-        f.write("\n\n---\n\n")
+        f.write("\n\n")
 
         for msg in conversation:
             role = msg["role"]
-            content = msg["content"]
+            content = msg["content"].strip()
             header = role_headers.get(role, f"## {role}\n\n")
             f.write(header)
-            f.write(f"{content}\n\n")
-            f.write("---\n\n")
+            if role == "user":
+                f.write(f"{escape_headings(content)}\n\n")
+            else:
+                f.write(f"{downlevel_headings(content)}\n\n")
 
     return output_path
 
