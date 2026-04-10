@@ -662,9 +662,9 @@ Examples:
 
         if sessions and not args.list:
             print("\nTo extract conversations:")
-            print("  claude-extract --extract <number>      # Extract specific session")
-            print("  claude-extract --recent 5              # Extract 5 most recent")
-            print("  claude-extract --all                   # Extract all sessions")
+            print("  ai-extract --extract <number>      # Extract specific session")
+            print("  ai-extract --recent 5              # Extract 5 most recent")
+            print("  ai-extract --all                   # Extract all sessions")
 
     elif args.extract:
         sessions = extractor.find_sessions()

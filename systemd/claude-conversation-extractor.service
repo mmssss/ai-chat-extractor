@@ -1,6 +1,0 @@
-[Unit]
-Description=Extract Claude Code conversations to markdown (incremental)
-
-[Service]
-Type=oneshot
-ExecStart=%h/.local/bin/claude-extract --all --output %h/claude-logs

@@ -1,61 +1,31 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
 
-# Distribution / packaging
-.Python
+# Packaging
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
+.Python
 MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
+# Testing & coverage
+.pytest_cache/
+.hypothesis/
 .coverage
 .coverage.*
-.cache
-nosetests.xml
 coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
+htmlcov/
 
 # Virtual environments
-venv/
-ENV/
-env/
 .venv/
+venv/
+env/
 
-# IDEs
+# Editors & OS
 .idea/
 .vscode/
 *.swp
@@ -63,34 +33,19 @@ env/
 *~
 .DS_Store
 
-# Project specific
+# AI assistants
 .claude
-claude-logs/
-*.md.backup
-test-output/
+.codex
 
-# Local testing
+# Project
+claude-logs/
+test-output/
 test_conversations/
 local_tests/
 /test_*.py
-
-# Database and cache files
+*.md.backup
 *.db
 *.db-shm
 *.db-wal
-claude_extractor.db*
-
-# Build artifacts
-*.o
-*.dylib
 *.log
-
-# Development files
 *.patch
-bandit_report.json
-demo_*.py
-RELEASE_NOTES_*.md
-PR_BODY.md
-
-# Cache directories
-claude_ui/

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Search functionality for Claude Conversation Extractor
+Search functionality for AI Chat Extractor
 
 This module provides powerful search capabilities including:
 - Full-text search with relevance ranking

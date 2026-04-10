@@ -1,0 +1,6 @@
+[Unit]
+Description=Extract AI coding assistant conversations to markdown (incremental)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/ai-extract --all --output %h/claude-logs

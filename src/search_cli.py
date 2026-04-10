@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Simple CLI search for Claude conversations without terminal control.
-This is used when running `claude-search` from the command line.
+Simple CLI search for AI assistant conversations without terminal control.
+This is used when running `ai-search` from the command line.
 """
 
 import sys

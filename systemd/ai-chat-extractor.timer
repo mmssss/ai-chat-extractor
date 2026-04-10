@@ -1,5 +1,5 @@
 [Unit]
-Description=Run claude-conversation-extractor periodically
+Description=Run ai-chat-extractor periodically
 
 [Timer]
 OnCalendar=*-*-* 04:00:00

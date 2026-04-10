@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive terminal UI for Claude Conversation Extractor"""
+"""Interactive terminal UI for AI Chat Extractor"""
 
 import os
 import platform

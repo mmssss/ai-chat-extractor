@@ -12,10 +12,10 @@ IDENTITY_KEY=""
 OUTPUT_DIR=""
 
 usage() {
-    echo "Sync Claude Code data from a remote server"
+    echo "Sync AI chat assistant data from a remote server"
     echo
-    echo "Rsyncs ~/.claude.json and ~/.claude/ from the remote host into a local"
-    echo "directory, under a subdirectory named after the host."
+    echo "Rsyncs AI assistant local storage (e.g. ~/.claude/) from the remote host"
+    echo "into a local directory, under a subdirectory named after the host."
     echo
     echo "Usage: $0 -H HOST -u USER -o OUTPUT_DIR [-i IDENTITY_KEY] [-s SSH_OPTS]"
     echo
@@ -29,7 +29,6 @@ usage() {
     echo
     echo "Examples:"
     echo "  $0 -H myserver -u john -o ./backup"
-    echo "  $0 --host devbox --user admin --identity ~/.ssh/id_ed25519 --output /tmp/claude-sync"
     exit 1
 }
 
@@ -123,7 +122,7 @@ fi
 DEST="${OUTPUT_DIR}/${REMOTE_HOST}"
 mkdir -p "$DEST"
 
-echo "Syncing Claude data from ${REMOTE_USER}@${REMOTE_HOST} -> ${DEST}"
+echo "Syncing from ${REMOTE_USER}@${REMOTE_HOST} -> ${DEST}"
 
 # Sync ~/.claude.json
 echo "  Syncing ~/.claude.json ..."
