@@ -8,7 +8,7 @@ used by Claude Code to store conversations in ~/.claude/projects/.
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 def is_ide_preamble(text: str) -> bool:
@@ -292,3 +292,41 @@ def get_conversation_preview(session_path: Path) -> Tuple[str, int]:
         return first_user_msg or "No preview available", msg_count
     except Exception as e:
         return f"Error: {str(e)[:30]}", 0
+
+
+def extract_search_content(entry: Any) -> Optional[Tuple[str, str]]:
+    """Extract ``(text, speaker)`` for search indexing, or ``None`` to skip.
+
+    Mirrors ``codex_parsers.extract_search_content`` so ConversationSearcher
+    can dispatch through the adapter without branching on source.
+    """
+    if not isinstance(entry, dict):
+        return None
+
+    etype = entry.get("type")
+    if etype not in ("user", "assistant"):
+        return None
+
+    message = entry.get("message")
+    if not isinstance(message, dict):
+        return None
+
+    content = message.get("content", "")
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(item.get("text", ""))
+            elif isinstance(item, str):
+                parts.append(item)
+        text = " ".join(p for p in parts if p).strip()
+    elif isinstance(content, str):
+        text = content.strip()
+    else:
+        return None
+
+    if not text:
+        return None
+
+    speaker = "human" if etype == "user" else "assistant"
+    return text, speaker

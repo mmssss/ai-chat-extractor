@@ -69,22 +69,31 @@ class TestConversationSearcher(unittest.TestCase):
         self.test_dir = Path(self.temp_dir) / ".claude" / "projects" / "test"
         self.test_dir.mkdir(parents=True)
 
-        # Create test conversation file
+        # Create test conversation file (real Claude shape with nested message)
         self.test_file = self.test_dir / "chat_test.jsonl"
         self.test_conversations = [
             {
                 "type": "user",
-                "content": "How do I handle Python errors?",
+                "message": {
+                    "role": "user",
+                    "content": "How do I handle Python errors?",
+                },
                 "timestamp": "2024-01-15T10:00:00Z",
             },
             {
                 "type": "assistant",
-                "content": "To handle errors in Python, use try-except blocks.",
+                "message": {
+                    "role": "assistant",
+                    "content": "To handle errors in Python, use try-except blocks.",
+                },
                 "timestamp": "2024-01-15T10:01:00Z",
             },
             {
                 "type": "user",
-                "content": "Can you show me an example with file operations?",
+                "message": {
+                    "role": "user",
+                    "content": "Can you show me an example with file operations?",
+                },
                 "timestamp": "2024-01-15T10:02:00Z",
             },
         ]
@@ -443,12 +452,18 @@ class TestIntegration(unittest.TestCase):
             conversations = [
                 {
                     "type": "user",
-                    "content": f"Question about Python project {i}",
+                    "message": {
+                        "role": "user",
+                        "content": f"Question about Python project {i}",
+                    },
                     "timestamp": f"2024-01-{15 + i}T10:00:00Z",
                 },
                 {
                     "type": "assistant",
-                    "content": f"Here's the answer for project {i}",
+                    "message": {
+                        "role": "assistant",
+                        "content": f"Here's the answer for project {i}",
+                    },
                     "timestamp": f"2024-01-{15 + i}T10:01:00Z",
                 },
             ]

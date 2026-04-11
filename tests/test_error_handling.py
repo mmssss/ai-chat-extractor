@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Local imports after sys.path modification
-from extract_claude_logs import (ClaudeConversationExtractor,  # noqa: E402
+from extract_claude_logs import (ConversationExtractor,  # noqa: E402
                                  launch_interactive, main)
 
 
@@ -34,7 +34,7 @@ class TestErrorHandling(unittest.TestCase):
         """Test init when fallback directories are used"""
         with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
             # Should find a writable directory (temp_dir based paths are writable)
-            extractor = ClaudeConversationExtractor(None)
+            extractor = ConversationExtractor(None)
             self.assertIsNotNone(extractor.output_dir)
             self.assertTrue(extractor.output_dir.exists())
 
@@ -43,7 +43,7 @@ class TestErrorHandling(unittest.TestCase):
         test_file = Path(self.temp_dir) / "test.jsonl"
         test_file.write_text('{"type": "test"}')
 
-        extractor = ClaudeConversationExtractor(self.temp_dir)
+        extractor = ConversationExtractor(self.temp_dir)
 
         with patch("builtins.open", side_effect=PermissionError("Access denied")):
             with patch("builtins.print") as mock_print:
@@ -56,7 +56,7 @@ class TestErrorHandling(unittest.TestCase):
 
     def test_save_as_markdown_write_error(self):
         """Test save_as_markdown with write error"""
-        extractor = ClaudeConversationExtractor(self.temp_dir)
+        extractor = ConversationExtractor(self.temp_dir)
         conversation = [{"role": "user", "content": "Test", "timestamp": ""}]
 
         with patch("builtins.open", side_effect=IOError("Disk full")):
@@ -67,7 +67,7 @@ class TestErrorHandling(unittest.TestCase):
 
     def test_list_recent_sessions_no_sessions_messages(self):
         """Test list_recent_sessions prints correct messages when no sessions"""
-        extractor = ClaudeConversationExtractor(self.temp_dir)
+        extractor = ConversationExtractor(self.temp_dir)
 
         with patch.object(extractor, "find_sessions", return_value=[]):
             with patch("builtins.print") as mock_print:
@@ -80,14 +80,14 @@ class TestErrorHandling(unittest.TestCase):
                 )
                 self.assertTrue(
                     any(
-                        "Make sure you've used Claude Code" in str(call)
+                        "Make sure you've used Claude" in str(call)
                         for call in print_calls
                     )
                 )
 
     def test_extract_multiple_skip_message(self):
         """Test extract_multiple prints skip message for empty conversations"""
-        extractor = ClaudeConversationExtractor(self.temp_dir)
+        extractor = ConversationExtractor(self.temp_dir)
         sessions = [Path("test.jsonl")]
 
         with patch.object(extractor, "extract_conversation", return_value=[]):
@@ -110,12 +110,12 @@ class TestMainFunctionErrorCases(unittest.TestCase):
         """Test main handles invalid extract numbers gracefully"""
         with patch("sys.argv", ["prog", "--extract", "abc,1,xyz"]):
             with patch.object(
-                ClaudeConversationExtractor,
+                ConversationExtractor,
                 "find_sessions",
                 return_value=[Path("test.jsonl")],
             ):
                 with patch.object(
-                    ClaudeConversationExtractor, "extract_multiple",
+                    ConversationExtractor, "extract_multiple",
                     return_value=(1, 1)
                 ) as mock_extract:
                     with patch("builtins.print") as mock_print:
@@ -145,10 +145,10 @@ class TestMainFunctionErrorCases(unittest.TestCase):
         """Test --all command with no sessions found"""
         with patch("sys.argv", ["prog", "--all"]):
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions", return_value=[]
+                ConversationExtractor, "find_sessions", return_value=[]
             ):
                 with patch.object(
-                    ClaudeConversationExtractor, "extract_multiple", return_value=(0, 0)
+                    ConversationExtractor, "extract_multiple", return_value=(0, 0)
                 ) as mock_extract:
                     with patch("builtins.print"):
                         main()
@@ -281,7 +281,7 @@ class TestInteractiveMode(unittest.TestCase):
         """Test no arguments lists sessions (default action)"""
         with patch("sys.argv", ["prog"]):
             with patch.object(
-                ClaudeConversationExtractor, "list_recent_sessions",
+                ConversationExtractor, "list_recent_sessions",
                 return_value=[]
             ) as mock_list:
                 with patch("builtins.print"):

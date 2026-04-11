@@ -95,7 +95,7 @@ class KeyboardHandler:
             if select.select([sys.stdin], [], [], timeout)[0]:
                 # Read one character
                 char = sys.stdin.read(1)
-                
+
                 # Check for escape sequences
                 if char == '\x1b':  # ESC character
                     # Check if there are more characters (arrow key sequence)
@@ -103,11 +103,11 @@ class KeyboardHandler:
                         # Read the rest of the escape sequence
                         seq = []
                         seq.append(sys.stdin.read(1))  # Should be '['
-                        
+
                         # Read the next character
                         if select.select([sys.stdin], [], [], 0.0)[0]:
                             seq.append(sys.stdin.read(1))
-                            
+
                             # Check for arrow keys
                             if seq == ['[', 'A']:
                                 return "UP"
@@ -126,7 +126,7 @@ class KeyboardHandler:
                     else:
                         # Just ESC by itself
                         return "ESC"
-                        
+
                 elif char == '\r' or char == '\n':
                     return "ENTER"
                 elif char == '\x7f' or char == '\x08':
@@ -214,7 +214,7 @@ class TerminalDisplay:
                     preview = (
                         preview[:idx]
                         + f"\033[93m{preview[idx:idx + len(query)]}\033[0m"
-                        + preview[idx + len(query) :]
+                        + preview[idx + len(query):]
                     )
 
                 print(f"📄 {date_str} | {project} | {preview}...")
@@ -317,7 +317,7 @@ class RealTimeSearch:
         """Handle keyboard input and return action if needed"""
         if not key:
             return None
-            
+
         if key == "ESC":
             return "exit"
 
@@ -352,8 +352,8 @@ class RealTimeSearch:
         elif key == "BACKSPACE":
             if self.state.cursor_pos > 0:
                 self.state.query = (
-                    self.state.query[: self.state.cursor_pos - 1]
-                    + self.state.query[self.state.cursor_pos :]
+                    self.state.query[:self.state.cursor_pos - 1]
+                    + self.state.query[self.state.cursor_pos:]
                 )
                 self.state.cursor_pos -= 1
                 self.trigger_search()
@@ -361,9 +361,9 @@ class RealTimeSearch:
 
         elif key and len(key) == 1 and ord(key) >= 32 and ord(key) < 127:  # Printable character
             self.state.query = (
-                self.state.query[: self.state.cursor_pos]
+                self.state.query[:self.state.cursor_pos]
                 + key
-                + self.state.query[self.state.cursor_pos :]
+                + self.state.query[self.state.cursor_pos:]
             )
             self.state.cursor_pos += 1
             self.trigger_search()
@@ -411,11 +411,11 @@ class RealTimeSearch:
                 self.display.draw_search_box(
                     self.state.query, self.state.cursor_pos
                 )
-                
+
                 while True:
                     # Get keyboard input
                     key = keyboard.get_key(timeout=0.1)
-                    
+
                     if key:
                         action = self.handle_input(key)
 
@@ -520,21 +520,31 @@ def create_smart_searcher(searcher):
 
 def main():
     """Main entry point for running real-time search directly."""
-    from extract_claude_logs import ClaudeConversationExtractor
+    import argparse
+    from extract_claude_logs import ConversationExtractor
     from search_conversations import ConversationSearcher
-    
-    # Initialize components
-    extractor = ClaudeConversationExtractor()
-    searcher = ConversationSearcher()
+
+    parser = argparse.ArgumentParser(
+        prog="realtime-search",
+        description="Interactive real-time search for AI assistant conversations.",
+    )
+    parser.add_argument(
+        "--source",
+        choices=["claude", "codex"],
+        default="claude",
+        help="Which AI assistant's conversations to search (default: claude).",
+    )
+    args = parser.parse_args()
+
+    extractor = ConversationExtractor(source=args.source)
+    searcher = ConversationSearcher(source=args.source)
     smart_searcher = create_smart_searcher(searcher)
-    
-    # Create and run real-time search
+
     rts = RealTimeSearch(smart_searcher, extractor)
     selected_file = rts.run()
-    
+
     if selected_file:
         print(f"\n✅ Selected: {selected_file}")
-        # Could optionally extract here
     else:
         print("\n👋 Search cancelled")
 

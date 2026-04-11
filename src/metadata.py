@@ -133,7 +133,11 @@ def extract_session_metadata(jsonl_path: Path) -> Dict:
 
     Returns dict with: slug, custom_title, first_user_message, sessionId,
     first_timestamp, last_timestamp, models, version, gitBranch, cwd,
-    project_path, entry_count, has_subagents, subagent_count
+    project_path, entry_count, message_count, has_subagents, subagent_count.
+
+    ``entry_count`` counts every JSONL envelope (summaries, custom-title,
+    user, assistant, etc.). ``message_count`` counts only user+assistant
+    turns — the number a human would recognize as "messages exchanged".
     """
     metadata = {
         "slug": "",
@@ -148,6 +152,7 @@ def extract_session_metadata(jsonl_path: Path) -> Dict:
         "cwd": "",
         "project_path": "",
         "entry_count": 0,
+        "message_count": 0,
         "has_subagents": False,
         "subagent_count": 0,
         "has_errors": False,
@@ -201,13 +206,19 @@ def extract_session_metadata(jsonl_path: Path) -> Dict:
                     if not metadata["cwd"] and entry.get("cwd"):
                         metadata["cwd"] = entry["cwd"]
 
-                    # Models used
+                    # Models used + assistant message count
                     if entry.get("type") == "assistant" and isinstance(
                         entry.get("message"), dict
                     ):
                         model = entry["message"].get("model", "")
                         if model and model != "<synthetic>":
                             metadata["models"].add(model)
+                        metadata["message_count"] += 1
+
+                    if entry.get("type") == "user" and isinstance(
+                        entry.get("message"), dict
+                    ):
+                        metadata["message_count"] += 1
 
                     # Errors
                     if entry.get("error") or entry.get("isApiErrorMessage"):

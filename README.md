@@ -2,7 +2,7 @@
 
 Extract AI coding assistants' conversations from local storage. Converts conversations to clean Markdown, JSON, or HTML files.
 
-Currently supports **Claude Code** (`~/.claude/projects/`). **OpenAI Codex** support planned.
+Supports **Claude Code** (`~/.claude/projects/`) and **OpenAI Codex** (`~/.codex/sessions/`). Pick the source with `--source {claude,codex}`; interactive mode prompts you when run without a source.
 
 Forked from [claude-conversation-extractor](https://github.com/ZeroSumQuant/claude-conversation-extractor) by Dustin Kirby.
 
@@ -29,26 +29,31 @@ pipx install --editable .
 ## Usage
 
 ```bash
-# Interactive mode (recommended)
+# Interactive mode (recommended) — prompts for the source first
 ai-extract
 
-# List all conversations
+# List Claude conversations (default source)
 ai-extract --list
+
+# List Codex conversations
+ai-extract --list --source codex
 
 # Export specific conversations by number
 ai-extract --extract 1,3,5
+ai-extract --extract 1,3,5 --source codex
 
 # Export recent conversations
-ai-extract --recent 5
+ai-extract --recent 5 --source codex
 
 # Export all conversations
 ai-extract --all
 
 # Save to custom location
-ai-extract --output ~/my-backups
+ai-extract --output ~/my-backups --source codex
 
 # Search conversations
 ai-search "API integration"
+ai-search "encrypted_content" --source codex
 ```
 
 ### Export Formats
@@ -130,12 +135,19 @@ OnCalendar=*-*-* 06,18:00:00  # twice a day at 06:00 and 18:00
 
 Then reload: `systemctl --user daemon-reload`.
 
-## Where Conversations Are Stored
+## Supported Sources
 
-| Provider | Location | Format |
-|----------|----------|--------|
-| Claude Code | `~/.claude/projects/*/chat_*.jsonl` | JSONL |
-| Codex (planned) | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | JSONL |
+Each source is read-only; the tool never writes back to these paths.
+
+| Provider | `--source` value | Location | Format |
+|----------|------------------|----------|--------|
+| Claude Code | `claude` (default) | `~/.claude/projects/*/<uuid>.jsonl` | JSONL, flat entries |
+| OpenAI Codex | `codex` | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | JSONL, envelope-wrapped entries |
+
+Thread names for Codex come from `~/.codex/session_index.jsonl` when present,
+otherwise from a preview of the first user message. Subagents are discovered
+via `parent_thread_id` linkage on sibling rollout files in the same date
+directory.
 
 ## Privacy
 

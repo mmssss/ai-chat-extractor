@@ -1,6 +1,6 @@
 [project]
 name = "ai-chat-extractor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Extract and search AI coding assistant conversations (Claude Code, OpenAI Codex) from local storage to markdown, JSON, and HTML."
 readme = "README.md"
 authors = [
@@ -23,7 +23,19 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["extract_claude_logs", "interactive_ui", "search_conversations", "realtime_search", "search_cli", "parsers", "metadata", "formatters"]
+py-modules = [
+    "extract_claude_logs",
+    "interactive_ui",
+    "search_conversations",
+    "realtime_search",
+    "search_cli",
+    "parsers",
+    "metadata",
+    "formatters",
+    "codex_parsers",
+    "codex_metadata",
+    "source_adapter",
+]
 
 [tool.setuptools.package-dir]
 "" = "src"

@@ -7,113 +7,103 @@ import json
 import tempfile
 from pathlib import Path
 
-# Sample conversation data that covers various scenarios
+
+def _user(text: str, ts: str) -> dict:
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": text},
+        "timestamp": ts,
+    }
+
+
+def _assistant(text: str, ts: str) -> dict:
+    return {
+        "type": "assistant",
+        "message": {"role": "assistant", "content": text},
+        "timestamp": ts,
+    }
+
+
+# Sample conversation data in the real Claude JSONL shape: every entry is
+# wrapped in ``{"type": ..., "message": {"role": ..., "content": ...}}``.
 SAMPLE_CONVERSATIONS = [
     {
         "id": "python_errors",
         "messages": [
-            {
-                "type": "user",
-                "content": "How do I handle Python errors?",
-                "timestamp": "2024-01-15T10:00:00Z",
-            },
-            {
-                "type": "assistant",
-                "content": (
-                    "To handle errors in Python, use try-except blocks. "
-                    "Here's an example:\n\n```python\ntry:\n    risky_operation()\n"
-                    "except ValueError as e:\n    print(f'Error: {e}')\n```"
-                ),
-                "timestamp": "2024-01-15T10:01:00Z",
-            },
-            {
-                "type": "user",
-                "content": "What about handling multiple exception types?",
-                "timestamp": "2024-01-15T10:02:00Z",
-            },
-            {
-                "type": "assistant",
-                "content": (
-                    "You can handle multiple exceptions using multiple except blocks "
-                    "or a tuple of exception types."
-                ),
-                "timestamp": "2024-01-15T10:03:00Z",
-            },
+            _user("How do I handle Python errors?", "2024-01-15T10:00:00Z"),
+            _assistant(
+                "To handle errors in Python, use try-except blocks. "
+                "Here's an example:\n\n```python\ntry:\n    risky_operation()\n"
+                "except ValueError as e:\n    print(f'Error: {e}')\n```",
+                "2024-01-15T10:01:00Z",
+            ),
+            _user(
+                "What about handling multiple exception types?",
+                "2024-01-15T10:02:00Z",
+            ),
+            _assistant(
+                "You can handle multiple exceptions using multiple except blocks "
+                "or a tuple of exception types.",
+                "2024-01-15T10:03:00Z",
+            ),
         ],
     },
     {
         "id": "file_operations",
         "messages": [
-            {
-                "type": "user",
-                "content": "Can you show me how to read and write files in Python?",
-                "timestamp": "2024-01-16T14:30:00Z",
-            },
-            {
-                "type": "assistant",
-                "content": (
-                    "Here's how to work with files:\n\n```python\n# Reading\n"
-                    "with open('file.txt', 'r') as f:\n    content = f.read()\n\n"
-                    "# Writing\nwith open('output.txt', 'w') as f:\n"
-                    "    f.write('Hello, World!')\n```"
-                ),
-                "timestamp": "2024-01-16T14:31:00Z",
-            },
+            _user(
+                "Can you show me how to read and write files in Python?",
+                "2024-01-16T14:30:00Z",
+            ),
+            _assistant(
+                "Here's how to work with files:\n\n```python\n# Reading\n"
+                "with open('file.txt', 'r') as f:\n    content = f.read()\n\n"
+                "# Writing\nwith open('output.txt', 'w') as f:\n"
+                "    f.write('Hello, World!')\n```",
+                "2024-01-16T14:31:00Z",
+            ),
         ],
     },
     {
         "id": "regex_patterns",
         "messages": [
-            {
-                "type": "user",
-                "content": "I need help with regex patterns for email validation",
-                "timestamp": "2024-01-17T09:15:00Z",
-            },
-            {
-                "type": "assistant",
-                "content": (
-                    "Here's a regex pattern for email validation:\n\n```python\n"
-                    "import re\n\npattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+"
-                    "\\.[a-zA-Z]{2,}$'\nemail = 'user@example.com'\n\n"
-                    "if re.match(pattern, email):\n    print('Valid email')\n```"
-                ),
-                "timestamp": "2024-01-17T09:16:00Z",
-            },
+            _user(
+                "I need help with regex patterns for email validation",
+                "2024-01-17T09:15:00Z",
+            ),
+            _assistant(
+                "Here's a regex pattern for email validation:\n\n```python\n"
+                "import re\n\npattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+"
+                "\\.[a-zA-Z]{2,}$'\nemail = 'user@example.com'\n\n"
+                "if re.match(pattern, email):\n    print('Valid email')\n```",
+                "2024-01-17T09:16:00Z",
+            ),
         ],
     },
     {
         "id": "api_requests",
         "messages": [
-            {
-                "type": "user",
-                "content": "How do I make API requests in Python?",
-                "timestamp": "2024-01-18T16:45:00Z",
-            },
-            {
-                "type": "assistant",
-                "content": (
-                    "You can use the requests library:\n\n```python\n"
-                    "import requests\n\nresponse = requests.get("
-                    "'https://api.example.com/data')\n"
-                    "if response.status_code == 200:\n    data = response.json()\n```"
-                ),
-                "timestamp": "2024-01-18T16:46:00Z",
-            },
+            _user("How do I make API requests in Python?", "2024-01-18T16:45:00Z"),
+            _assistant(
+                "You can use the requests library:\n\n```python\n"
+                "import requests\n\nresponse = requests.get("
+                "'https://api.example.com/data')\n"
+                "if response.status_code == 200:\n    data = response.json()\n```",
+                "2024-01-18T16:46:00Z",
+            ),
         ],
     },
     {
         "id": "database_connection",
         "messages": [
-            {
-                "type": "user",
-                "content": "What's the best way to connect to a PostgreSQL database?",
-                "timestamp": "2024-01-19T11:20:00Z",
-            },
-            {
-                "type": "assistant",
-                "content": "I recommend using psycopg2 or SQLAlchemy for PostgreSQL connections.",
-                "timestamp": "2024-01-19T11:21:00Z",
-            },
+            _user(
+                "What's the best way to connect to a PostgreSQL database?",
+                "2024-01-19T11:20:00Z",
+            ),
+            _assistant(
+                "I recommend using psycopg2 or SQLAlchemy for PostgreSQL connections.",
+                "2024-01-19T11:21:00Z",
+            ),
         ],
     },
 ]

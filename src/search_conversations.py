@@ -19,6 +19,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
+try:
+    from .source_adapter import get_source
+except ImportError:
+    from source_adapter import get_source
+
 # Optional NLP imports for semantic search
 try:
     import spacy
@@ -57,20 +62,32 @@ class SearchResult:
 
 class ConversationSearcher:
     """
-    Main search engine for Claude conversations.
+    Main search engine for AI assistant conversations.
 
-    Provides multiple search modes and intelligent ranking.
+    Provides multiple search modes and intelligent ranking. Source-agnostic:
+    dispatches per-entry parsing through the configured SourceAdapter so the
+    same search/rank/context code works for Claude, Codex, and future sources.
     """
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        cache_dir: Optional[Path] = None,
+        search_dir: Optional[Path] = None,
+        source: str = "claude",
+    ):
         """
         Initialize the searcher.
 
         Args:
-            cache_dir: Optional directory for caching processed conversations
+            cache_dir: Optional cache directory (defaults to adapter's cache_subdir)
+            search_dir: Optional search root (defaults to adapter's default_source_dir)
+            source: Which source adapter to use ("claude" or "codex")
         """
-        self.cache_dir = cache_dir or Path.home() / ".claude" / ".search_cache"
+        self.source = source
+        self.adapter = get_source(source)
+        self.cache_dir = cache_dir or self.adapter.cache_subdir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.search_dir = search_dir or self.adapter.default_source_dir
 
         # Initialize NLP if available
         self.nlp = None
@@ -121,7 +138,7 @@ class ConversationSearcher:
             List of SearchResult objects sorted by relevance
         """
         if search_dir is None:
-            search_dir = Path.home() / ".claude" / "projects"
+            search_dir = self.search_dir
 
         if not search_dir.exists():
             raise ValueError(f"Search directory does not exist: {search_dir}")
@@ -129,7 +146,9 @@ class ConversationSearcher:
         if not query or not query.strip():
             return []
 
-        jsonl_files = list(search_dir.rglob("*.jsonl"))
+        jsonl_files = self.adapter.metadata.find_sessions(
+            search_dir, include_subagents=True
+        )
         if not jsonl_files:
             return []
 
@@ -155,9 +174,11 @@ class ConversationSearcher:
     ) -> List[Path]:
         """Find all conversation files within a date range."""
         if search_dir is None:
-            search_dir = Path.home() / ".claude" / "projects"
+            search_dir = self.search_dir
 
-        jsonl_files = list(search_dir.rglob("*.jsonl"))
+        jsonl_files = self.adapter.metadata.find_sessions(
+            search_dir, include_subagents=True
+        )
         return self._filter_files_by_date(jsonl_files, date_from, date_to)
 
     def get_conversation_topics(
@@ -250,21 +271,21 @@ class ConversationSearcher:
 
         Handles file reading, JSON parsing, speaker filtering, and
         timestamp parsing — the boilerplate shared by all search modes.
+        Per-entry content/speaker extraction is delegated to the adapter.
         """
+        extract = self.adapter.parsers.extract_search_content
         try:
             with open(jsonl_file, "r", encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     try:
                         entry = json.loads(line.strip())
-                        if entry.get("type") not in ["user", "assistant"]:
+                        result = extract(entry)
+                        if result is None:
                             continue
-
-                        speaker = "human" if entry["type"] == "user" else "assistant"
-                        if speaker_filter and speaker != speaker_filter:
-                            continue
-
-                        content = self._extract_content(entry)
+                        content, speaker = result
                         if not content:
+                            continue
+                        if speaker_filter and speaker != speaker_filter:
                             continue
 
                         timestamp = self._parse_timestamp(entry.get("timestamp"))
@@ -355,31 +376,13 @@ class ConversationSearcher:
     # ── Content extraction ───────────────────────────────────────────
 
     def _extract_content(self, entry: Dict) -> str:
-        """Extract text content from a JSONL entry."""
-        # Handle test format (type: user/assistant, content: string)
-        if entry.get("type") in ["user", "assistant"] and "content" in entry:
-            content = entry["content"]
-            if isinstance(content, str):
-                return content
+        """Extract text content from a JSONL entry via the adapter.
 
-        # Handle actual Claude log format (type: user/assistant, message: {...})
-        if "message" in entry:
-            msg = entry["message"]
-            if isinstance(msg, dict):
-                content = msg.get("content", "")
-
-                if isinstance(content, list):
-                    text_parts = []
-                    for item in content:
-                        if isinstance(item, dict) and item.get("type") == "text":
-                            text_parts.append(item.get("text", ""))
-                        elif isinstance(item, str):
-                            text_parts.append(item)
-                    return " ".join(text_parts)
-                elif isinstance(content, str):
-                    return content
-
-        return ""
+        Returns empty string for entries the adapter doesn't recognize
+        (tool calls, system messages, envelope metadata, etc.).
+        """
+        result = self.adapter.parsers.extract_search_content(entry)
+        return result[0] if result else ""
 
     # ── Relevance scoring ────────────────────────────────────────────
 

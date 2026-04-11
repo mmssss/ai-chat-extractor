@@ -14,16 +14,16 @@ from unittest.mock import Mock, patch
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Local imports after sys.path modification
-from extract_claude_logs import ClaudeConversationExtractor, main  # noqa: E402
+from extract_claude_logs import ConversationExtractor, main  # noqa: E402
 
 
-class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
-    """Comprehensive tests for ClaudeConversationExtractor"""
+class TestConversationExtractorComprehensive(unittest.TestCase):
+    """Comprehensive tests for ConversationExtractor"""
 
     def setUp(self):
         """Set up test environment"""
         self.temp_dir = tempfile.mkdtemp()
-        self.extractor = ClaudeConversationExtractor(self.temp_dir)
+        self.extractor = ConversationExtractor(self.temp_dir)
 
         # Create test Claude directory structure
         self.claude_dir = Path(self.temp_dir) / ".claude" / "projects"
@@ -38,20 +38,20 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
     def test_init_with_custom_output(self):
         """Test initialization with custom output directory"""
         custom_dir = Path(self.temp_dir) / "custom"
-        extractor = ClaudeConversationExtractor(str(custom_dir))
+        extractor = ConversationExtractor(str(custom_dir))
         self.assertEqual(extractor.output_dir, custom_dir)
 
     def test_init_with_none_output(self):
         """Test initialization with None output directory"""
         with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
-            extractor = ClaudeConversationExtractor(None)
+            extractor = ConversationExtractor(None)
             # Should use one of the fallback directories
             self.assertIsNotNone(extractor.output_dir)
 
     def test_find_sessions_empty(self):
         """Test finding sessions when none exist"""
         # Point extractor's claude_dir to our empty temp dir
-        self.extractor.claude_dir = self.claude_dir
+        self.extractor.session_dir = self.claude_dir
         sessions = self.extractor.find_sessions()
         self.assertEqual(sessions, [])
 
@@ -66,7 +66,7 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
         chat_file1.write_text("{}")
         chat_file2.write_text("{}")
 
-        self.extractor.claude_dir = self.claude_dir
+        self.extractor.session_dir = self.claude_dir
         sessions = self.extractor.find_sessions()
         self.assertEqual(len(sessions), 2)
 
@@ -140,7 +140,7 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
         chat_file = project_dir / "chat_test.jsonl"
         chat_file.write_text('{"type": "test"}')
 
-        self.extractor.claude_dir = self.claude_dir
+        self.extractor.session_dir = self.claude_dir
         with patch("builtins.print") as mock_print:
             sessions = self.extractor.list_recent_sessions(limit=5)
 
@@ -203,10 +203,10 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
 
         with patch("sys.argv", ["prog", "--recent", "3"]):
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions", return_value=mock_sessions
+                ConversationExtractor, "find_sessions", return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor,
+                    ConversationExtractor,
                     "extract_multiple",
                     return_value=(3, 3)
                 ) as mock_extract:
@@ -223,10 +223,10 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
 
         with patch("sys.argv", ["prog", "--all"]):
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions", return_value=mock_sessions
+                ConversationExtractor, "find_sessions", return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor,
+                    ConversationExtractor,
                     "extract_multiple",
                     return_value=(5, 5)
                 ) as mock_extract:
@@ -241,7 +241,7 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
         """Test main function with --list"""
         with patch("sys.argv", ["prog", "--list"]):
             with patch.object(
-                ClaudeConversationExtractor, "list_recent_sessions"
+                ConversationExtractor, "list_recent_sessions"
             ) as mock_list:
                 with patch("builtins.print"):
                     main()
@@ -251,12 +251,12 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
         """Test main function with --extract"""
         with patch("sys.argv", ["prog", "--extract", "1"]):
             with patch.object(
-                ClaudeConversationExtractor,
+                ConversationExtractor,
                 "find_sessions",
                 return_value=[Path("test.jsonl")],
             ):
                 with patch.object(
-                    ClaudeConversationExtractor,
+                    ConversationExtractor,
                     "extract_multiple",
                     return_value=(1, 1)
                 ) as mock_extract:
@@ -268,12 +268,12 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
         """Test main function with comma-separated indices"""
         with patch("sys.argv", ["prog", "--extract", "1,2,3"]):
             with patch.object(
-                ClaudeConversationExtractor,
+                ConversationExtractor,
                 "find_sessions",
                 return_value=[Path(f"test{i}.jsonl") for i in range(5)],
             ):
                 with patch.object(
-                    ClaudeConversationExtractor,
+                    ConversationExtractor,
                     "extract_multiple",
                     return_value=(3, 3)
                 ) as mock_extract:
@@ -289,11 +289,11 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
 
         with patch("sys.argv", ["prog", "--recent", "5"]):
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions",
+                ConversationExtractor, "find_sessions",
                 return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor,
+                    ConversationExtractor,
                     "extract_multiple",
                     return_value=(5, 5)
                 ) as mock_extract:
@@ -309,11 +309,11 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
 
         with patch("sys.argv", ["prog", "--all"]):
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions",
+                ConversationExtractor, "find_sessions",
                 return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor,
+                    ConversationExtractor,
                     "extract_multiple",
                     return_value=(5, 5)
                 ) as mock_extract:
@@ -398,7 +398,7 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
         """Test main function with no arguments (should list sessions)"""
         with patch("sys.argv", ["prog"]):
             with patch.object(
-                ClaudeConversationExtractor, "list_recent_sessions",
+                ConversationExtractor, "list_recent_sessions",
                 return_value=[]
             ) as mock_list:
                 with patch("builtins.print"):
@@ -419,7 +419,7 @@ class TestClaudeConversationExtractorComprehensive(unittest.TestCase):
     def test_output_dir_fallback(self):
         """Test output directory fallback when Desktop/Documents don't exist"""
         with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
-            extractor = ClaudeConversationExtractor(None)
+            extractor = ConversationExtractor(None)
             # Should have created a valid output directory
             self.assertTrue(extractor.output_dir.exists())
 

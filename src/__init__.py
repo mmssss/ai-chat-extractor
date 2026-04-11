@@ -1,14 +1,18 @@
 """AI Chat Extractor - Extract AI coding assistant conversations to various formats."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-from .extract_claude_logs import ClaudeConversationExtractor
+from . import codex_metadata, codex_parsers, formatters, metadata, parsers, source_adapter
+from .extract_claude_logs import ConversationExtractor
 from .search_conversations import ConversationSearcher
 
 __all__ = [
-    "ClaudeConversationExtractor",
+    "ConversationExtractor",
     "ConversationSearcher",
     "parsers",
     "metadata",
     "formatters",
+    "codex_parsers",
+    "codex_metadata",
+    "source_adapter",
 ]

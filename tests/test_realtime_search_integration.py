@@ -15,7 +15,7 @@ sys.path.append(str(Path(__file__).parent))
 # Local imports after sys.path modification
 from fixtures.sample_conversations import (ConversationFixtures,  # noqa: E402
                                            cleanup_test_environment)
-from extract_claude_logs import ClaudeConversationExtractor  # noqa: E402
+from extract_claude_logs import ConversationExtractor  # noqa: E402
 from realtime_search import RealTimeSearch, create_smart_searcher  # noqa: E402
 from search_conversations import ConversationSearcher  # noqa: E402
 
@@ -37,7 +37,7 @@ class TestRealTimeSearchIntegration(unittest.TestCase):
     def setUp(self):
         """Set up searcher and extractor for each test"""
         self.searcher = ConversationSearcher()
-        self.extractor = ClaudeConversationExtractor()
+        self.extractor = ConversationExtractor()
         # Create smart searcher for RTS
         smart_searcher = create_smart_searcher(self.searcher)
         self.rts = RealTimeSearch(smart_searcher, self.extractor)
@@ -272,7 +272,7 @@ class TestRealTimeSearchWithExtractor(unittest.TestCase):
     def setUp(self):
         """Set up components"""
         self.searcher = ConversationSearcher()
-        self.extractor = ClaudeConversationExtractor(Path(self.temp_dir))
+        self.extractor = ConversationExtractor(Path(self.temp_dir))
         self.rts = RealTimeSearch(self.searcher, self.extractor)
 
     def test_extractor_integration(self):

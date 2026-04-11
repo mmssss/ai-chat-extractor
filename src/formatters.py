@@ -13,9 +13,31 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 try:
-    from .metadata import extract_session_metadata, get_subagent_metadata
+    from .source_adapter import get_source
 except ImportError:
-    from metadata import extract_session_metadata, get_subagent_metadata
+    from source_adapter import get_source
+
+
+_LABELS = {
+    "claude": {
+        "display_name": "Claude",
+        "filename_prefix": "claude",
+        "assistant_header_md": "## 🤖 Claude\n\n",
+        "h1_md": "# Claude Conversation Log\n\n",
+        "title_html": "Claude Conversation",
+        "h1_html": "Claude Conversation Log",
+        "assistant_role_html": "🤖 Claude",
+    },
+    "codex": {
+        "display_name": "Codex",
+        "filename_prefix": "codex",
+        "assistant_header_md": "## 🤖 Codex\n\n",
+        "h1_md": "# Codex Conversation Log\n\n",
+        "title_html": "Codex Conversation",
+        "h1_html": "Codex Conversation Log",
+        "assistant_role_html": "🤖 Codex",
+    },
+}
 
 
 def _find_min_heading_level(lines):
@@ -172,29 +194,25 @@ def resolve_output_path(output_dir: Path, filename: str) -> Optional[Path]:
     return path
 
 
-def generate_filename(session_path: Path, format: str = "markdown") -> str:
+def generate_filename(
+    session_path: Path,
+    format: str = "markdown",
+    source: str = "claude",
+) -> str:
     """Generate output filename from conversation metadata.
 
-    Format: 20260311T081823_claude_<slug>.<ext>
+    Format: 20260311T081823_<prefix>_<slug>.<ext>
 
     Priority for slug:
-    1. custom_title - user-set name via /rename command
+    1. custom_title - user-set name
     2. first_user_message - slugified first meaningful user message
     3. session ID prefix - first 8 chars of the UUID
-
-    Args:
-        session_path: Path to the JSONL file
-        format: Output format ('markdown', 'json', 'html')
-
-    Returns:
-        Generated filename string
     """
     ext_map = {"markdown": "md", "json": "json", "html": "html"}
     ext = ext_map.get(format, "md")
 
-    metadata = extract_session_metadata(session_path)
+    metadata = get_source(source).metadata.extract_session_metadata(session_path)
 
-    # Build timestamp part
     first_ts = metadata["first_timestamp"]
     if first_ts:
         try:
@@ -206,8 +224,9 @@ def generate_filename(session_path: Path, format: str = "markdown") -> str:
         ts_part = datetime.now().strftime("%Y%m%dT%H%M%S")
 
     slug_part = slug_from_metadata(metadata)
+    prefix = _LABELS[source]["filename_prefix"]
 
-    return f"{ts_part}_claude_{slug_part}.{ext}"
+    return f"{ts_part}_{prefix}_{slug_part}.{ext}"
 
 
 def generate_subagent_filename(
@@ -215,24 +234,15 @@ def generate_subagent_filename(
     parent_metadata: Dict,
     agent_index: int,
     format: str = "markdown",
+    source: str = "claude",
 ) -> str:
     """Generate output filename for a subagent conversation.
 
-    Format: 20260311T081823_claude_<parent-slug>_agent<N>_<agentId-short>.<ext>
-
-    Args:
-        subagent_path: Path to the subagent JSONL file
-        parent_metadata: Metadata dict from the parent conversation
-        agent_index: 1-based index of this agent among siblings
-        format: Output format
-
-    Returns:
-        Generated filename string
+    Format: 20260311T081823_<prefix>_<parent-slug>_agent<N>_<agent-id>.<ext>
     """
     ext_map = {"markdown": "md", "json": "json", "html": "html"}
     ext = ext_map.get(format, "md")
 
-    # Use parent's timestamp
     first_ts = parent_metadata.get("first_timestamp", "")
     if first_ts:
         try:
@@ -245,11 +255,14 @@ def generate_subagent_filename(
 
     parent_slug = slug_from_metadata(parent_metadata)
 
-    # Agent ID (short)
-    agent_meta = get_subagent_metadata(subagent_path)
-    agent_id_short = agent_meta["agentId"][:8] if agent_meta["agentId"] else "unknown"
+    agent_meta = get_source(source).metadata.get_subagent_metadata(subagent_path)
+    agent_part = agent_meta.get(
+        "agent_id_display",
+        agent_meta["agentId"][:8] if agent_meta["agentId"] else "unknown",
+    )
+    prefix = _LABELS[source]["filename_prefix"]
 
-    return f"{ts_part}_claude_{parent_slug}_agent{agent_index}_{agent_id_short}.{ext}"
+    return f"{ts_part}_{prefix}_{parent_slug}_agent{agent_index}_{agent_part}.{ext}"
 
 
 def save_as_markdown(
@@ -258,16 +271,9 @@ def save_as_markdown(
     output_dir: Path,
     session_path: Optional[Path] = None,
     filename_override: Optional[str] = None,
+    source: str = "claude",
 ) -> Optional[Path]:
-    """Save conversation as clean markdown file.
-
-    Args:
-        conversation: List of message dicts
-        session_id: Session identifier (UUID)
-        output_dir: Directory to save to
-        session_path: Optional path to JSONL file for metadata-based filename
-        filename_override: Optional explicit filename to use
-    """
+    """Save conversation as clean markdown file."""
     if not conversation:
         return None
 
@@ -284,26 +290,27 @@ def save_as_markdown(
         date_str = datetime.now().strftime("%Y-%m-%d")
         time_str = ""
 
+    prefix = _LABELS[source]["filename_prefix"]
     if filename_override:
         filename = filename_override
     elif session_path:
-        filename = generate_filename(session_path, format="markdown")
+        filename = generate_filename(session_path, format="markdown", source=source)
     else:
-        filename = f"claude-conversation-{date_str}-{session_id[:8]}.md"
+        filename = f"{prefix}-conversation-{date_str}-{session_id[:8]}.md"
     output_path = resolve_output_path(output_dir, filename)
     if output_path is None:
         return None
 
     role_headers = {
         "user": "## 👤 User\n\n",
-        "assistant": "## 🤖 Claude\n\n",
+        "assistant": _LABELS[source]["assistant_header_md"],
         "tool_use": "### 🔧 Tool Use\n\n",
         "tool_result": "### 📤 Tool Result\n\n",
         "system": "### ℹ️ System\n\n",
     }
 
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write("# Claude Conversation Log\n\n")
+        f.write(_LABELS[source]["h1_md"])
         f.write(f"Session ID: {session_id}\n")
         f.write(f"Date: {date_str}")
         if time_str:
@@ -329,16 +336,9 @@ def save_as_json(
     output_dir: Path,
     session_path: Optional[Path] = None,
     filename_override: Optional[str] = None,
+    source: str = "claude",
 ) -> Optional[Path]:
-    """Save conversation as JSON file.
-
-    Args:
-        conversation: List of message dicts
-        session_id: Session identifier (UUID)
-        output_dir: Directory to save to
-        session_path: Optional path to JSONL file for metadata-based filename
-        filename_override: Optional explicit filename to use
-    """
+    """Save conversation as JSON file."""
     if not conversation:
         return None
 
@@ -352,12 +352,13 @@ def save_as_json(
     else:
         date_str = datetime.now().strftime("%Y-%m-%d")
 
+    prefix = _LABELS[source]["filename_prefix"]
     if filename_override:
         filename = filename_override
     elif session_path:
-        filename = generate_filename(session_path, format="json")
+        filename = generate_filename(session_path, format="json", source=source)
     else:
-        filename = f"claude-conversation-{date_str}-{session_id[:8]}.json"
+        filename = f"{prefix}-conversation-{date_str}-{session_id[:8]}.json"
     output_path = resolve_output_path(output_dir, filename)
     if output_path is None:
         return None
@@ -381,16 +382,9 @@ def save_as_html(
     output_dir: Path,
     session_path: Optional[Path] = None,
     filename_override: Optional[str] = None,
+    source: str = "claude",
 ) -> Optional[Path]:
-    """Save conversation as HTML file with syntax highlighting.
-
-    Args:
-        conversation: List of message dicts
-        session_id: Session identifier (UUID)
-        output_dir: Directory to save to
-        session_path: Optional path to JSONL file for metadata-based filename
-        filename_override: Optional explicit filename to use
-    """
+    """Save conversation as HTML file with syntax highlighting."""
     if not conversation:
         return None
 
@@ -407,12 +401,13 @@ def save_as_html(
         date_str = datetime.now().strftime("%Y-%m-%d")
         time_str = ""
 
+    prefix = _LABELS[source]["filename_prefix"]
     if filename_override:
         filename = filename_override
     elif session_path:
-        filename = generate_filename(session_path, format="html")
+        filename = generate_filename(session_path, format="html", source=source)
     else:
-        filename = f"claude-conversation-{date_str}-{session_id[:8]}.html"
+        filename = f"{prefix}-conversation-{date_str}-{session_id[:8]}.html"
     output_path = resolve_output_path(output_dir, filename)
     if output_path is None:
         return None
@@ -422,7 +417,7 @@ def save_as_html(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude Conversation - {session_id[:8]}</title>
+    <title>{_LABELS[source]["title_html"]} - {session_id[:8]}</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -499,7 +494,7 @@ def save_as_html(
 </head>
 <body>
     <div class="header">
-        <h1>Claude Conversation Log</h1>
+        <h1>{_LABELS[source]["h1_html"]}</h1>
         <div class="metadata">
             <p>Session ID: {session_id}</p>
             <p>Date: {date_str} {time_str}</p>
@@ -510,7 +505,7 @@ def save_as_html(
 
     role_display = {
         "user": "👤 User",
-        "assistant": "🤖 Claude",
+        "assistant": _LABELS[source]["assistant_role_html"],
         "tool_use": "🔧 Tool Use",
         "tool_result": "📤 Tool Result",
         "system": "ℹ️ System",
@@ -547,20 +542,13 @@ def save_conversation(
     format: str = "markdown",
     session_path: Optional[Path] = None,
     filename_override: Optional[str] = None,
+    source: str = "claude",
 ) -> Optional[Path]:
-    """Save conversation in the specified format.
-
-    Args:
-        conversation: The conversation data
-        session_id: Session identifier
-        output_dir: Directory to save to
-        format: Output format ('markdown', 'json', 'html')
-        session_path: Optional path to JSONL file for metadata-based filename
-        filename_override: Optional explicit filename to use
-    """
+    """Save conversation in the specified format."""
     kwargs = {
         "session_path": session_path,
         "filename_override": filename_override,
+        "source": source,
     }
     if format == "markdown":
         return save_as_markdown(conversation, session_id, output_dir, **kwargs)

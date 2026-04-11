@@ -9,25 +9,66 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-# Handle both package and direct execution imports
 try:
-    from .extract_claude_logs import ClaudeConversationExtractor
+    from .extract_claude_logs import ConversationExtractor
     from .realtime_search import RealTimeSearch, create_smart_searcher
     from .search_conversations import ConversationSearcher
+    from .source_adapter import get_source
 except ImportError:
-    # Fallback for direct execution or when not installed as package
-    from extract_claude_logs import ClaudeConversationExtractor
+    from extract_claude_logs import ConversationExtractor
     from realtime_search import RealTimeSearch, create_smart_searcher
     from search_conversations import ConversationSearcher
+    from source_adapter import get_source
+
+
+def get_source_selection() -> Optional[str]:
+    """Prompt user to choose a source (Claude or Codex).
+
+    Returns "claude", "codex", or None if the user quits.
+    """
+    print("\033[2J\033[H", end="")  # Clear screen
+    print("╔════════════════════════════════════════════════╗")
+    print("║          AI Chat Extractor — v0.2.0            ║")
+    print("╠════════════════════════════════════════════════╣")
+    print("║  Which AI assistant's conversations?           ║")
+    print("║                                                ║")
+    print("║    1. Claude Code   (~/.claude/projects/)      ║")
+    print("║    2. OpenAI Codex  (~/.codex/sessions/)       ║")
+    print("║                                                ║")
+    print("║    Q. Quit                                     ║")
+    print("╚════════════════════════════════════════════════╝")
+
+    while True:
+        try:
+            choice = input("\nChoice: ").strip().upper()
+        except (EOFError, KeyboardInterrupt):
+            return None
+        if choice == "Q":
+            return None
+        elif choice == "1":
+            return "claude"
+        elif choice == "2":
+            return "codex"
+        else:
+            print("❌ Invalid choice. Enter 1, 2, or Q.")
 
 
 class InteractiveUI:
     """Interactive terminal UI for easier conversation extraction"""
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(
+        self,
+        source: str = "claude",
+        output_dir: Optional[str] = None,
+    ):
+        self.source = source
+        self.adapter = get_source(source)
         self.output_dir = output_dir
-        self.extractor = ClaudeConversationExtractor(output_dir)
-        self.searcher = ConversationSearcher()
+        self.extractor = ConversationExtractor(
+            output_dir=Path(output_dir) if output_dir else None,
+            source=source,
+        )
+        self.searcher = ConversationSearcher(source=source)
         self.sessions: List[Path] = []
         self.terminal_width = shutil.get_terminal_size().columns
 
@@ -72,14 +113,7 @@ class InteractiveUI:
         self.print_banner()
         print("\n📁 Where would you like to save your conversations?\n")
 
-        # Suggest common locations
-        home = Path.home()
-        suggestions = [
-            home / "Desktop" / "Claude Conversations",
-            home / "Documents" / "Claude Conversations",
-            home / "Downloads" / "Claude Conversations",
-            Path.cwd() / "Claude Conversations",
-        ]
+        suggestions = list(self.adapter.output_dir_suggestions)
 
         print("Suggested locations:")
         for i, path in enumerate(suggestions, 1):
@@ -107,13 +141,13 @@ class InteractiveUI:
         self.clear_screen()
         self.print_banner()
 
-        # Get all sessions
-        print("\n🔍 Finding your Claude conversations...")
+        display = self.adapter.display_name
+        print(f"\n🔍 Finding your {display} conversations...")
         self.sessions = self.extractor.find_sessions()
 
         if not self.sessions:
-            print("\n❌ No Claude conversations found!")
-            print("Make sure you've used Claude Code at least once.")
+            print(f"\n❌ No {display} conversations found!")
+            print(f"Make sure you've used {display} at least once.")
             input("\nPress Enter to exit...")
             return []
 
@@ -186,11 +220,10 @@ class InteractiveUI:
         selected_file = rts.run()
 
         if selected_file:
-            # View the selected conversation
             self.extractor.display_conversation(Path(selected_file))
-            
-            # Ask if user wants to extract it
-            extract_choice = input("\n📤 Extract this conversation? (y/N): ").strip().lower()
+
+            prompt = "\n📤 Extract this conversation? (y/N): "
+            extract_choice = input(prompt).strip().lower()
             if extract_choice == 'y':
                 try:
                     index = self.sessions.index(Path(selected_file))
@@ -198,8 +231,7 @@ class InteractiveUI:
                 except ValueError:
                     print("\n❌ Error: Selected file not found in sessions list")
                     input("\nPress Enter to continue...")
-            
-            # Return empty to go back to menu
+
             return []
 
         return []
@@ -274,9 +306,20 @@ class InteractiveUI:
             input("\nPress Enter to exit...")
 
 
-def main():
-    """Entry point for interactive UI"""
-    ui = InteractiveUI()
+def main(source: Optional[str] = None):
+    """Entry point for interactive UI.
+
+    If ``source`` is not provided, prompts the user to select Claude or Codex
+    via the source-selection screen. If the user quits, returns without
+    launching the extraction flow.
+    """
+    if source is None:
+        source = get_source_selection()
+        if source is None:
+            print("\n👋 Goodbye!")
+            return
+
+    ui = InteractiveUI(source=source)
     ui.run()
 
 

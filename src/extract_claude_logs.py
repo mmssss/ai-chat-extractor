@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Extract clean conversation logs from Claude Code's internal JSONL files
+Extract clean conversation logs from AI assistant rollout files.
 
-This tool parses the undocumented JSONL format used by Claude Code to store
-conversations locally in ~/.claude/projects/ and exports them as clean,
-readable markdown files.
+Supports Claude Code (~/.claude/projects/) and OpenAI Codex
+(~/.codex/sessions/) via a SourceAdapter registry — the source is
+selected with the ``source`` constructor arg or ``--source`` CLI flag.
 """
 
 import argparse
@@ -12,54 +12,61 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-# Import focused modules — each handles one responsibility
 try:
-    from . import formatters, metadata, parsers
+    from . import formatters
+    from .source_adapter import get_source
 except ImportError:
     import formatters
-    import metadata
-    import parsers
+    from source_adapter import get_source
 
 
-class ClaudeConversationExtractor:
-    """Extract and convert Claude Code conversations from JSONL to markdown.
+class ConversationExtractor:
+    """Extract and convert AI assistant conversations to markdown/JSON/HTML.
 
-    This is the main orchestrator class. The heavy lifting is delegated to:
-      - parsers   : JSONL parsing, content extraction
-      - metadata  : session discovery, metadata extraction
-      - formatters: output formatting (markdown, JSON, HTML), filename generation
+    Delegates the per-source work to a ``SourceAdapter`` looked up by name:
+      - ``adapter.parsers``   : JSONL parsing, content extraction
+      - ``adapter.metadata``  : session discovery, metadata extraction
+      - ``formatters``        : output formatting + filename generation (source-aware)
     """
 
-    def __init__(self, output_dir: Optional[Path] = None, source_dir: Optional[Path] = None):
-        """Initialize the extractor with Claude's directory and output location.
+    def __init__(
+        self,
+        output_dir: Optional[Path] = None,
+        source_dir: Optional[Path] = None,
+        source: str = "claude",
+    ):
+        """Initialize the extractor.
 
         Args:
             output_dir: Directory to save exported files to.
-            source_dir: Override the default ~/.claude/projects/ source directory.
+            source_dir: Override the adapter's default source directory.
                         Useful for reading synced remote logs.
+            source: Which source backend to use ("claude" or "codex").
         """
+        self.adapter = get_source(source)
+        self.source = self.adapter.name
+
         if source_dir:
-            self.claude_dir = Path(source_dir)
+            self.session_dir = Path(source_dir)
         else:
-            self.claude_dir = Path.home() / ".claude" / "projects"
+            self.session_dir = self.adapter.default_source_dir
 
         if output_dir:
             self.output_dir = Path(output_dir)
             self.output_dir.mkdir(parents=True, exist_ok=True)
         else:
             # Try multiple possible output directories
+            display = self.adapter.display_name
             possible_dirs = [
-                Path.home() / "Desktop" / "Claude logs",
-                Path.home() / "Documents" / "Claude logs",
-                Path.home() / "Claude logs",
-                Path.cwd() / "claude-logs",
+                Path.home() / "Desktop" / f"{display} logs",
+                Path.home() / "Documents" / f"{display} logs",
+                Path.home() / f"{display} logs",
+                Path.cwd() / f"{self.adapter.filename_prefix}-logs",
             ]
 
-            # Use the first directory we can create
             for dir_path in possible_dirs:
                 try:
                     dir_path.mkdir(parents=True, exist_ok=True)
-                    # Test if we can write to it
                     test_file = dir_path / ".test"
                     test_file.touch()
                     test_file.unlink()
@@ -68,49 +75,46 @@ class ClaudeConversationExtractor:
                 except Exception:
                     continue
             else:
-                # Fallback to current directory
-                self.output_dir = Path.cwd() / "claude-logs"
+                self.output_dir = Path.cwd() / f"{self.adapter.filename_prefix}-logs"
                 self.output_dir.mkdir(exist_ok=True)
 
         print(f"📁 Saving logs to: {self.output_dir}")
 
-    # ── Session discovery (delegates to metadata module) ─────────────
+    # ── Session discovery (delegates to adapter.metadata) ────────────
 
     def find_sessions(
         self, project_path: Optional[str] = None, include_subagents: bool = False
     ) -> List[Path]:
         """Find all JSONL session files, sorted by most recent first."""
-        return metadata.find_sessions(self.claude_dir, project_path, include_subagents)
+        return self.adapter.metadata.find_sessions(
+            self.session_dir, project_path, include_subagents
+        )
 
     def find_subagents(self, session_path: Path) -> List[Path]:
         """Find all subagent JSONL files associated with a main conversation."""
-        return metadata.find_subagents(session_path)
+        return self.adapter.metadata.find_subagents(session_path)
 
     def get_subagent_metadata(self, subagent_path: Path) -> Dict:
         """Get metadata for a subagent from its .meta.json file and JSONL content."""
-        return metadata.get_subagent_metadata(subagent_path)
+        return self.adapter.metadata.get_subagent_metadata(subagent_path)
 
-    # ── Parsing helpers (delegates to parsers module) ────────────────
+    # ── Parsing helpers (delegates to adapter.parsers) ───────────────
 
-    @staticmethod
-    def _is_ide_preamble(text: str) -> bool:
+    def _is_ide_preamble(self, text: str) -> bool:
         """Check if text is an IDE-generated preamble rather than real user input."""
-        return parsers.is_ide_preamble(text)
+        return self.adapter.parsers.is_ide_preamble(text)
 
-    @staticmethod
-    def _clean_slash_command(text: str) -> str:
+    def _clean_slash_command(self, text: str) -> str:
         """Clean up slash command text that gets duplicated by IDE."""
-        return parsers.clean_slash_command(text)
+        return self.adapter.parsers.clean_slash_command(text)
 
-    @staticmethod
-    def _extract_first_user_text(jsonl_path: Path) -> str:
+    def _extract_first_user_text(self, jsonl_path: Path) -> str:
         """Extract the first meaningful user message text from a JSONL file."""
-        return parsers.extract_first_user_text(jsonl_path)
+        return self.adapter.parsers.extract_first_user_text(jsonl_path)
 
-    @staticmethod
-    def extract_session_metadata(jsonl_path: Path) -> Dict:
+    def extract_session_metadata(self, jsonl_path: Path) -> Dict:
         """Extract all available metadata from a conversation JSONL file."""
-        return metadata.extract_session_metadata(jsonl_path)
+        return self.adapter.metadata.extract_session_metadata(jsonl_path)
 
     # ── Filename generation (delegates to formatters module) ─────────
 
@@ -129,7 +133,7 @@ class ClaudeConversationExtractor:
 
     def generate_filename(self, session_path: Path, format: str = "markdown") -> str:
         """Generate output filename from conversation metadata."""
-        return formatters.generate_filename(session_path, format)
+        return formatters.generate_filename(session_path, format, source=self.source)
 
     def generate_subagent_filename(
         self,
@@ -140,24 +144,24 @@ class ClaudeConversationExtractor:
     ) -> str:
         """Generate output filename for a subagent conversation."""
         return formatters.generate_subagent_filename(
-            subagent_path, parent_metadata, agent_index, format
+            subagent_path, parent_metadata, agent_index, format, source=self.source
         )
 
-    # ── Conversation extraction (delegates to parsers module) ────────
+    # ── Conversation extraction (delegates to adapter.parsers) ───────
 
     def extract_conversation(
         self, jsonl_path: Path, detailed: bool = False
     ) -> List[Dict[str, str]]:
         """Extract conversation messages from a JSONL file."""
-        return parsers.extract_conversation(jsonl_path, detailed)
+        return self.adapter.parsers.extract_conversation(jsonl_path, detailed)
 
     def _extract_text_content(self, content, detailed: bool = False) -> str:
-        """Extract text from various content formats Claude uses."""
-        return parsers.extract_text_content(content, detailed)
+        """Extract text from content formats used by this source."""
+        return self.adapter.parsers.extract_text_content(content, detailed)
 
     def get_conversation_preview(self, session_path: Path) -> Tuple[str, int]:
         """Get a preview of the conversation's first real user message and message count."""
-        return parsers.get_conversation_preview(session_path)
+        return self.adapter.parsers.get_conversation_preview(session_path)
 
     # ── Save / export (delegates to formatters module) ───────────────
 
@@ -170,7 +174,8 @@ class ClaudeConversationExtractor:
     ) -> Optional[Path]:
         """Save conversation as clean markdown file."""
         return formatters.save_as_markdown(
-            conversation, session_id, self.output_dir, session_path, filename_override
+            conversation, session_id, self.output_dir,
+            session_path, filename_override, source=self.source,
         )
 
     def save_as_json(
@@ -182,7 +187,8 @@ class ClaudeConversationExtractor:
     ) -> Optional[Path]:
         """Save conversation as JSON file."""
         return formatters.save_as_json(
-            conversation, session_id, self.output_dir, session_path, filename_override
+            conversation, session_id, self.output_dir,
+            session_path, filename_override, source=self.source,
         )
 
     def save_as_html(
@@ -194,7 +200,8 @@ class ClaudeConversationExtractor:
     ) -> Optional[Path]:
         """Save conversation as HTML file with syntax highlighting."""
         return formatters.save_as_html(
-            conversation, session_id, self.output_dir, session_path, filename_override
+            conversation, session_id, self.output_dir,
+            session_path, filename_override, source=self.source,
         )
 
     def save_conversation(
@@ -207,7 +214,8 @@ class ClaudeConversationExtractor:
     ) -> Optional[Path]:
         """Save conversation in the specified format."""
         return formatters.save_conversation(
-            conversation, session_id, self.output_dir, format, session_path, filename_override
+            conversation, session_id, self.output_dir, format,
+            session_path, filename_override, source=self.source,
         )
 
     # ── Display ──────────────────────────────────────────────────────
@@ -243,10 +251,11 @@ class ClaudeConversationExtractor:
             lines_shown = 8
             lines_per_page = 30
 
+            assistant_label = f"🤖 {self.adapter.display_name.upper()}:"
             role_labels = {
                 "user": ("👤 HUMAN:", "─" * 40),
                 "human": ("👤 HUMAN:", "─" * 40),
-                "assistant": ("🤖 CLAUDE:", "─" * 40),
+                "assistant": (assistant_label, "─" * 40),
                 "tool_use": ("🔧 TOOL USE:", None),
                 "tool_result": ("📤 TOOL RESULT:", None),
                 "system": ("ℹ️ SYSTEM:", None),
@@ -296,28 +305,45 @@ class ClaudeConversationExtractor:
 
     # ── Listing ──────────────────────────────────────────────────────
 
-    def list_recent_sessions(self, limit: int = None) -> List[Path]:
+    def _project_label(self, session: Path, session_meta: Dict) -> str:
+        """Return a human-friendly project label for the listing display.
+
+        Claude: parent dir name decoded from the slugified project path.
+        Codex:  ``cwd`` from session_meta, since the parent dir is the date.
+        """
+        if self.source == "codex":
+            cwd = session_meta.get("cwd", "") or ""
+            if cwd:
+                home = str(Path.home())
+                if cwd.startswith(home):
+                    return "~" + cwd[len(home):]
+                return cwd
+            return session.parent.name
+
+        project = session.parent.name.replace('-', ' ').strip()
+        if project.startswith("Users"):
+            project = (
+                "~/" + "/".join(project.split()[2:])
+                if len(project.split()) > 2
+                else "Home"
+            )
+        return project
+
+    def list_recent_sessions(self, limit: Optional[int] = None) -> List[Path]:
         """List recent sessions with details."""
         sessions = self.find_sessions()
+        display = self.adapter.display_name
 
         if not sessions:
-            print(f"❌ No Claude sessions found in {self.claude_dir}")
-            print("💡 Make sure you've used Claude Code and have conversations saved.")
+            print(f"❌ No {display} sessions found in {self.session_dir}")
+            print(f"💡 Make sure you've used {display} and have conversations saved.")
             return []
 
-        print(f"\n📚 Found {len(sessions)} Claude sessions:\n")
+        print(f"\n📚 Found {len(sessions)} {display} sessions:\n")
         print("=" * 80)
 
         sessions_to_show = sessions[:limit] if limit else sessions
         for i, session in enumerate(sessions_to_show, 1):
-            project = session.parent.name.replace('-', ' ').strip()
-            if project.startswith("Users"):
-                project = (
-                    "~/" + "/".join(project.split()[2:])
-                    if len(project.split()) > 2
-                    else "Home"
-                )
-
             session_id = session.stem
             modified = datetime.fromtimestamp(session.stat().st_mtime)
 
@@ -325,13 +351,14 @@ class ClaudeConversationExtractor:
             size_kb = size / 1024
 
             preview, msg_count = self.get_conversation_preview(session)
-
             session_meta = self.extract_session_metadata(session)
+            project = self._project_label(session, session_meta)
 
             print(f"\n{i}. 📁 {project}")
             if session_meta["custom_title"]:
                 print(f"   🏷️  Title: {session_meta['custom_title']}")
-            print(f"   📄 Session: {session_id[:8]}...")
+            display_id = session_meta.get("sessionId") or session_id
+            print(f"   📄 Session: {display_id[:8]}...")
             print(f"   📅 Modified: {modified.strftime('%Y-%m-%d %H:%M')}")
             print(f"   💬 Messages: {msg_count}")
             print(f"   💾 Size: {size_kb:.1f} KB")
@@ -427,22 +454,26 @@ class ClaudeConversationExtractor:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract Claude Code conversations to clean markdown files",
+        description="Extract AI assistant conversations (Claude Code, OpenAI Codex) "
+        "to clean markdown, JSON, or HTML files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --list                    # List all available sessions
-  %(prog)s --extract 1               # Extract the most recent session
-  %(prog)s --extract 1,3,5           # Extract specific sessions
-  %(prog)s --recent 5                # Extract 5 most recent sessions
-  %(prog)s --all                     # Extract all sessions
-  %(prog)s --output ~/my-logs        # Specify output directory
-  %(prog)s --search "python error"   # Search conversations
-  %(prog)s --search-regex "import.*" # Search with regex
-  %(prog)s --format json --all       # Export all as JSON
-  %(prog)s --format html --extract 1 # Export session 1 as HTML
-  %(prog)s --detailed --extract 1    # Include tool use & system messages
-  %(prog)s --source-dir ~/backups/myserver/.claude/projects/ --list  # List sessions from synced remote data
+  %(prog)s --list                       # List Claude sessions
+  %(prog)s --list --source codex        # List Codex sessions
+  %(prog)s --extract 1                  # Extract the most recent Claude session
+  %(prog)s --extract 1 --source codex   # Extract the most recent Codex session
+  %(prog)s --extract 1,3,5              # Extract specific sessions
+  %(prog)s --recent 5                   # Extract 5 most recent sessions
+  %(prog)s --all                        # Extract all sessions
+  %(prog)s --output ~/my-logs           # Specify output directory
+  %(prog)s --search "python error"      # Search Claude conversations
+  %(prog)s --search "CI/CD" --source codex  # Search Codex conversations
+  %(prog)s --format json --all          # Export all as JSON
+  %(prog)s --format html --extract 1    # Export session 1 as HTML
+  %(prog)s --detailed --extract 1       # Include tool use & developer messages
+  %(prog)s --source-dir ~/backups/myserver/.claude/projects/ --list  # Remote-synced Claude data
+  %(prog)s --source codex --source-dir ~/backups/myserver/.codex/sessions/ --list
         """,
     )
     parser.add_argument("--list", action="store_true", help="List recent sessions")
@@ -521,11 +552,21 @@ Examples:
         help="Exclude subagent (task) conversations from extraction",
     )
     parser.add_argument(
+        "--source",
+        choices=["claude", "codex"],
+        default=None,
+        help="Which AI assistant's conversations to read. "
+        "'claude' reads ~/.claude/projects/; 'codex' reads ~/.codex/sessions/. "
+        "Defaults to 'claude' for non-interactive commands; "
+        "interactive mode prompts for the source when omitted.",
+    )
+    parser.add_argument(
         "--source-dir",
         type=str,
-        help="Path to a 'projects' directory containing Claude conversations "
-        "(default: ~/.claude/projects/). Use this to extract from a synced "
-        "remote backup, e.g. ~/backups/myserver/.claude/projects/",
+        help="Override the default source directory for the selected --source. "
+        "Use this to extract from a synced remote backup, e.g. "
+        "~/backups/myserver/.claude/projects/ or "
+        "~/backups/myserver/.codex/sessions/",
     )
 
     args = parser.parse_args()
@@ -534,17 +575,22 @@ Examples:
     if args.interactive or (args.export and args.export.lower() == "logs"):
         from interactive_ui import main as interactive_main
 
-        interactive_main()
+        interactive_main(source=args.source)
         return
 
+    # Non-interactive commands fall back to Claude when --source is omitted.
+    source = args.source or "claude"
+
     # Initialize extractor with optional output/source directories
-    extractor = ClaudeConversationExtractor(args.output, source_dir=args.source_dir)
+    extractor = ConversationExtractor(
+        args.output, source_dir=args.source_dir, source=source,
+    )
 
     # Handle search mode
     if args.search or args.search_regex:
         from search_conversations import ConversationSearcher
 
-        searcher = ConversationSearcher()
+        searcher = ConversationSearcher(source=source)
 
         # Determine search mode and query
         if args.search_regex:
@@ -753,7 +799,7 @@ def launch_interactive():
             from realtime_search import RealTimeSearch, create_smart_searcher
             from search_conversations import ConversationSearcher
 
-        extractor = ClaudeConversationExtractor()
+        extractor = ConversationExtractor()
         searcher = ConversationSearcher()
         smart_searcher = create_smart_searcher(searcher)
 

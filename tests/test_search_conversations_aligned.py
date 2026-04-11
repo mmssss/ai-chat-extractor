@@ -315,16 +315,15 @@ class TestConversationSearcher(unittest.TestCase):
 
     def test_extract_content(self):
         """Test content extraction from different message formats"""
-        # _extract_content expects a dict (JSONL entry), not a raw string
-        # Test with direct content field (test format)
-        entry_with_content = {
+        # Plain string content wrapped in the real Claude entry shape.
+        entry_with_string = {
             "type": "user",
-            "content": "Simple string"
+            "message": {"role": "user", "content": "Simple string"},
         }
-        content = self.searcher._extract_content(entry_with_content)
+        content = self.searcher._extract_content(entry_with_string)
         self.assertEqual(content, "Simple string")
 
-        # Test with message dict containing list content
+        # List-of-text-parts content (the detailed Claude assistant shape).
         entry_with_message = {
             "type": "user",
             "message": {
@@ -338,7 +337,7 @@ class TestConversationSearcher(unittest.TestCase):
         content = self.searcher._extract_content(entry_with_message)
         self.assertEqual(content, "Part 1 Part 2")
 
-        # Test with unknown format
+        # Entries with an unknown envelope type return empty.
         entry_empty = {"type": "other"}
         content = self.searcher._extract_content(entry_empty)
         self.assertEqual(content, "")

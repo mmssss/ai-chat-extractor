@@ -10,14 +10,16 @@ REMOTE_HOST=""
 REMOTE_USER=""
 IDENTITY_KEY=""
 OUTPUT_DIR=""
+SOURCE="all"
 
 usage() {
     echo "Sync AI chat assistant data from a remote server"
     echo
-    echo "Rsyncs AI assistant local storage (e.g. ~/.claude/) from the remote host"
-    echo "into a local directory, under a subdirectory named after the host."
+    echo "Rsyncs AI assistant local storage (~/.claude/ and/or ~/.codex/) from the"
+    echo "remote host into a local directory, under a subdirectory named after the host."
     echo
     echo "Usage: $0 -H HOST -u USER -o OUTPUT_DIR [-i IDENTITY_KEY] [-s SSH_OPTS]"
+    echo "         [--source {claude,codex,all}]"
     echo
     echo "Options:"
     echo "  -H, --host HOST           Remote host, as defined in ~/.ssh/config (required)"
@@ -25,10 +27,14 @@ usage() {
     echo "  -o, --output DIR          Local output directory (required)"
     echo "  -i, --identity KEY        Path to SSH identity key (optional)"
     echo "  -s, --ssh-opts OPTS       SSH options (default: multiplexing options)"
+    echo "  --source WHICH            Which assistant to sync: claude, codex, or all"
+    echo "                            (default: all)"
     echo "  -h, --help                Show this help message"
     echo
     echo "Examples:"
-    echo "  $0 -H myserver -u john -o ./backup"
+    echo "  $0 -H myserver -u john -o ./backup                    # sync both"
+    echo "  $0 -H myserver -u john -o ./backup --source codex     # Codex only"
+    echo "  $0 -H myserver -u john -o ./backup --source claude    # Claude only"
     exit 1
 }
 
@@ -75,6 +81,14 @@ while [[ $# -gt 0 ]]; do
             SSH_OPTS="${1#*=}"
             shift
             ;;
+        --source)
+            SOURCE="$2"
+            shift 2
+            ;;
+        --source=*)
+            SOURCE="${1#*=}"
+            shift
+            ;;
         -h|--help)
             usage
             ;;
@@ -109,6 +123,14 @@ if [[ -z "$OUTPUT_DIR" ]]; then
     usage
 fi
 
+case "$SOURCE" in
+    claude|codex|all) ;;
+    *)
+        echo "Error: --source must be one of: claude, codex, all (got '$SOURCE')" >&2
+        usage
+        ;;
+esac
+
 # Build SSH command with identity key and options
 SSH_CMD="ssh ${SSH_OPTS}"
 if [[ -n "$IDENTITY_KEY" ]]; then
@@ -124,32 +146,50 @@ mkdir -p "$DEST"
 
 echo "Syncing from ${REMOTE_USER}@${REMOTE_HOST} -> ${DEST}"
 
-# Sync ~/.claude.json
-echo "  Syncing ~/.claude.json ..."
-rc=0
-rsync -az --info=progress2,stats2 \
-    -e "$SSH_CMD" \
-    "${REMOTE_USER}@${REMOTE_HOST}:~/.claude.json" \
-    "${DEST}/" || rc=$?
-if [[ $rc -eq 23 ]]; then
-    echo "  Warning: ~/.claude.json not found on remote (skipping)." >&2
-elif [[ $rc -ne 0 ]]; then
-    echo "  Error: rsync failed (exit code $rc)." >&2
-    exit 1
+if [[ "$SOURCE" == "all" || "$SOURCE" == "claude" ]]; then
+    # Sync ~/.claude.json
+    echo "  Syncing ~/.claude.json ..."
+    rc=0
+    rsync -az --info=progress2,stats2 \
+        -e "$SSH_CMD" \
+        "${REMOTE_USER}@${REMOTE_HOST}:~/.claude.json" \
+        "${DEST}/" || rc=$?
+    if [[ $rc -eq 23 ]]; then
+        echo "  Warning: ~/.claude.json not found on remote (skipping)." >&2
+    elif [[ $rc -ne 0 ]]; then
+        echo "  Error: rsync failed (exit code $rc)." >&2
+        exit 1
+    fi
+
+    # Sync ~/.claude/ directory recursively
+    echo "  Syncing ~/.claude/ ..."
+    rc=0
+    rsync -az --info=progress2,stats2 \
+        -e "$SSH_CMD" \
+        "${REMOTE_USER}@${REMOTE_HOST}:~/.claude/" \
+        "${DEST}/.claude/" || rc=$?
+    if [[ $rc -eq 23 ]]; then
+        echo "  Warning: ~/.claude/ not found on remote (skipping)." >&2
+    elif [[ $rc -ne 0 ]]; then
+        echo "  Error: rsync failed (exit code $rc)." >&2
+        exit 1
+    fi
 fi
 
-# Sync ~/.claude/ directory recursively
-echo "  Syncing ~/.claude/ ..."
-rc=0
-rsync -az --info=progress2,stats2 \
-    -e "$SSH_CMD" \
-    "${REMOTE_USER}@${REMOTE_HOST}:~/.claude/" \
-    "${DEST}/.claude/" || rc=$?
-if [[ $rc -eq 23 ]]; then
-    echo "  Warning: ~/.claude/ not found on remote (skipping)." >&2
-elif [[ $rc -ne 0 ]]; then
-    echo "  Error: rsync failed (exit code $rc)." >&2
-    exit 1
+if [[ "$SOURCE" == "all" || "$SOURCE" == "codex" ]]; then
+    # Sync ~/.codex/ directory recursively
+    echo "  Syncing ~/.codex/ ..."
+    rc=0
+    rsync -az --info=progress2,stats2 \
+        -e "$SSH_CMD" \
+        "${REMOTE_USER}@${REMOTE_HOST}:~/.codex/" \
+        "${DEST}/.codex/" || rc=$?
+    if [[ $rc -eq 23 ]]; then
+        echo "  Warning: ~/.codex/ not found on remote (skipping)." >&2
+    elif [[ $rc -ne 0 ]]; then
+        echo "  Error: rsync failed (exit code $rc)." >&2
+        exit 1
+    fi
 fi
 
 echo "Done. Data saved to: ${DEST}"

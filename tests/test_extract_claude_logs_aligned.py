@@ -15,16 +15,16 @@ from unittest.mock import Mock, patch
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Local imports after sys.path modification
-from extract_claude_logs import ClaudeConversationExtractor, main  # noqa: E402
+from extract_claude_logs import ConversationExtractor, main  # noqa: E402
 
 
-class TestClaudeConversationExtractor(unittest.TestCase):
-    """Test ClaudeConversationExtractor with proper alignment to actual code"""
+class TestConversationExtractor(unittest.TestCase):
+    """Test ConversationExtractor with proper alignment to actual code"""
 
     def setUp(self):
         """Set up test environment"""
         self.temp_dir = tempfile.mkdtemp()
-        self.extractor = ClaudeConversationExtractor(self.temp_dir)
+        self.extractor = ConversationExtractor(self.temp_dir)
 
     def tearDown(self):
         """Clean up test environment"""
@@ -36,14 +36,14 @@ class TestClaudeConversationExtractor(unittest.TestCase):
     def test_init_with_custom_output(self):
         """Test initialization with custom output directory"""
         custom_dir = Path(self.temp_dir) / "custom"
-        extractor = ClaudeConversationExtractor(str(custom_dir))
+        extractor = ConversationExtractor(str(custom_dir))
         self.assertEqual(extractor.output_dir, custom_dir)
         self.assertTrue(custom_dir.exists())
 
     def test_init_with_none_output_fallback(self):
         """Test initialization falls back when directories can't be created"""
         with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
-            extractor = ClaudeConversationExtractor(None)
+            extractor = ConversationExtractor(None)
             # Should find a writable directory
             self.assertIsNotNone(extractor.output_dir)
             self.assertTrue(extractor.output_dir.exists())
@@ -51,43 +51,35 @@ class TestClaudeConversationExtractor(unittest.TestCase):
     def test_init_creates_output_dir(self):
         """Test that init creates the output directory"""
         output_dir = Path(self.temp_dir) / "test_output"
-        _ = ClaudeConversationExtractor(output_dir)
+        _ = ConversationExtractor(output_dir)
         self.assertTrue(output_dir.exists())
 
     # Test find_sessions
     def test_find_sessions_empty(self):
         """Test finding sessions when none exist"""
-        # Create empty claude directory
         claude_dir = Path(self.temp_dir) / ".claude" / "projects"
         claude_dir.mkdir(parents=True)
 
-        # Create a new extractor that uses our temp dir
-        with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
-            test_extractor = ClaudeConversationExtractor(self.temp_dir)
-            sessions = test_extractor.find_sessions()
-            self.assertEqual(sessions, [])
+        test_extractor = ConversationExtractor(self.temp_dir, source_dir=claude_dir)
+        sessions = test_extractor.find_sessions()
+        self.assertEqual(sessions, [])
 
     def test_find_sessions_with_files(self):
         """Test finding sessions with JSONL files"""
-        # Create test structure
         claude_dir = Path(self.temp_dir) / ".claude" / "projects"
         project_dir = claude_dir / "test_project"
         project_dir.mkdir(parents=True)
 
-        # Create JSONL files
         (project_dir / "chat_123.jsonl").write_text("{}")
         (project_dir / "chat_456.jsonl").write_text("{}")
         (project_dir / "not_chat.txt").write_text("ignored")
 
-        # Create a new extractor that uses our temp dir
-        with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
-            test_extractor = ClaudeConversationExtractor(self.temp_dir)
-            sessions = test_extractor.find_sessions()
-            self.assertEqual(len(sessions), 2)
+        test_extractor = ConversationExtractor(self.temp_dir, source_dir=claude_dir)
+        sessions = test_extractor.find_sessions()
+        self.assertEqual(len(sessions), 2)
 
     def test_find_sessions_with_project_filter(self):
         """Test finding sessions with project path filter"""
-        # Create test structure
         claude_dir = Path(self.temp_dir) / ".claude" / "projects"
         project1 = claude_dir / "project1"
         project2 = claude_dir / "project2"
@@ -97,12 +89,10 @@ class TestClaudeConversationExtractor(unittest.TestCase):
         (project1 / "chat_1.jsonl").write_text("{}")
         (project2 / "chat_2.jsonl").write_text("{}")
 
-        with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
-            test_extractor = ClaudeConversationExtractor(self.temp_dir)
-            # Find only in project1
-            sessions = test_extractor.find_sessions("project1")
-            self.assertEqual(len(sessions), 1)
-            self.assertIn("project1", str(sessions[0]))
+        test_extractor = ConversationExtractor(self.temp_dir, source_dir=claude_dir)
+        sessions = test_extractor.find_sessions("project1")
+        self.assertEqual(len(sessions), 1)
+        self.assertIn("project1", str(sessions[0]))
 
     # Test extract_conversation
     def test_extract_conversation_valid_jsonl(self):
@@ -341,7 +331,7 @@ class TestMainFunction(unittest.TestCase):
         """Test that no arguments lists sessions (default action)"""
         with patch("sys.argv", ["extract_claude_logs.py"]):
             with patch.object(
-                ClaudeConversationExtractor, "list_recent_sessions",
+                ConversationExtractor, "list_recent_sessions",
                 return_value=[]
             ) as mock_list:
                 with patch("builtins.print"):
@@ -353,7 +343,7 @@ class TestMainFunction(unittest.TestCase):
         """Test --list command"""
         with patch("sys.argv", ["extract_claude_logs.py", "--list"]):
             with patch.object(
-                ClaudeConversationExtractor, "list_recent_sessions"
+                ConversationExtractor, "list_recent_sessions"
             ) as mock_list:
                 main()
                 mock_list.assert_called_once()
@@ -364,10 +354,10 @@ class TestMainFunction(unittest.TestCase):
             mock_sessions = [Path("test1.jsonl"), Path("test2.jsonl")]
 
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions", return_value=mock_sessions
+                ConversationExtractor, "find_sessions", return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor, "extract_multiple",
+                    ConversationExtractor, "extract_multiple",
                     return_value=(1, 1)
                 ) as mock_extract:
                     with patch("builtins.print"):
@@ -383,10 +373,10 @@ class TestMainFunction(unittest.TestCase):
             mock_sessions = [Path(f"test{i}.jsonl") for i in range(10)]
 
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions", return_value=mock_sessions
+                ConversationExtractor, "find_sessions", return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor, "extract_multiple",
+                    ConversationExtractor, "extract_multiple",
                     return_value=(3, 3)
                 ) as mock_extract:
                     with patch("builtins.print"):
@@ -401,10 +391,10 @@ class TestMainFunction(unittest.TestCase):
             mock_sessions = [Path(f"test{i}.jsonl") for i in range(10)]
 
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions", return_value=mock_sessions
+                ConversationExtractor, "find_sessions", return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor, "extract_multiple",
+                    ConversationExtractor, "extract_multiple",
                     return_value=(3, 3)
                 ) as mock_extract:
                     with patch("builtins.print"):
@@ -419,10 +409,10 @@ class TestMainFunction(unittest.TestCase):
             mock_sessions = [Path(f"test{i}.jsonl") for i in range(5)]
 
             with patch.object(
-                ClaudeConversationExtractor, "find_sessions", return_value=mock_sessions
+                ConversationExtractor, "find_sessions", return_value=mock_sessions
             ):
                 with patch.object(
-                    ClaudeConversationExtractor, "extract_multiple",
+                    ConversationExtractor, "extract_multiple",
                     return_value=(5, 5)
                 ) as mock_extract:
                     with patch("builtins.print"):
@@ -437,11 +427,12 @@ class TestMainFunction(unittest.TestCase):
         with patch(
             "sys.argv", ["extract_claude_logs.py", "--list", "--output", custom_output]
         ):
-            with patch("extract_claude_logs.ClaudeConversationExtractor") as mock_class:
-                with patch.object(ClaudeConversationExtractor, "list_recent_sessions"):
+            with patch("extract_claude_logs.ConversationExtractor") as mock_class:
+                with patch.object(ConversationExtractor, "list_recent_sessions"):
                     main()
-                    # Should initialize with custom output
-                    mock_class.assert_called_once_with(custom_output)
+                    mock_class.assert_called_once_with(
+                        custom_output, source_dir=None, source="claude"
+                    )
 
     def test_main_interactive_flag(self):
         """Test --interactive flag"""

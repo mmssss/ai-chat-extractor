@@ -10,16 +10,16 @@ from unittest.mock import MagicMock, patch
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from extract_claude_logs import ClaudeConversationExtractor  # noqa: E402
+from extract_claude_logs import ConversationExtractor  # noqa: E402
 
 
-class TestClaudeConversationExtractor(unittest.TestCase):
+class TestConversationExtractor(unittest.TestCase):
     """Test suite for the Claude Conversation Extractor"""
 
     def setUp(self):
         """Set up test fixtures"""
         self.temp_dir = tempfile.mkdtemp()
-        self.extractor = ClaudeConversationExtractor(output_dir=self.temp_dir)
+        self.extractor = ConversationExtractor(output_dir=self.temp_dir)
 
     def tearDown(self):
         """Clean up test fixtures"""
@@ -30,7 +30,7 @@ class TestClaudeConversationExtractor(unittest.TestCase):
     def test_initialization(self):
         """Test extractor initialization"""
         self.assertEqual(self.extractor.output_dir, Path(self.temp_dir))
-        self.assertTrue(self.extractor.claude_dir.name == "projects")
+        self.assertTrue(self.extractor.session_dir.name == "projects")
 
     def test_extract_text_content_string(self):
         """Test extracting text from string content"""
