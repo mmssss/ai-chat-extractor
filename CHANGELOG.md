@@ -1,7 +1,27 @@
 # Changelog
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## [0.2.0] - 2026-04-13 - Codex Support & Source Adapter
+
+### Added
+- **OpenAI Codex support** — extract and search Codex CLI conversations (`~/.codex/sessions/`)
+- **Source adapter registry** — extensible `SourceAdapter` dataclass for dispatching across AI assistants; adding a new source requires only a `*_parsers.py` + `*_metadata.py` pair
+- `ai-chat-rsync` entry point — rsync helper for syncing conversation data from remote machines
+- systemd service and timer for automated remote sync
+- `--source-dir` flag to specify a custom source directory for export
+- Content-based filenames for exported conversations
+- Subagent extraction support (Claude and Codex)
+- Skip already-exported conversations on re-run
+- Seconds-precision timestamps in exports
+
+### Fixed
+- Markdown heading collisions when multiple conversations share a title
+- Separator ambiguity in multi-conversation exports
+
+### Changed
+- Package restructured under `src/ai_chat_extractor/`
+- Internal modules unified behind the adapter pattern (`parsers` / `metadata` per source)
 
 ## [0.1.0] - 2026-04-10 - Fork & Rename
 
@@ -12,10 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed PyPI publishing wiring
 - Simplified packaging and documentation
 - Bumped minimum Python to 3.10
-
-### Planned
-- OpenAI Codex conversation support
-- Provider abstraction for multiple AI assistants
 
 ---
 
