@@ -3,7 +3,7 @@
 __version__ = "0.2.0"
 
 from . import codex_metadata, codex_parsers, formatters, metadata, parsers, source_adapter
-from .extract_claude_logs import ConversationExtractor
+from .conversation_extractor import ConversationExtractor
 from .search_conversations import ConversationSearcher
 
 __all__ = [

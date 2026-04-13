@@ -11,8 +11,9 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-ai-extract = "extract_claude_logs:launch_interactive"
+ai-extract = "conversation_extractor:launch_interactive"
 ai-search = "search_cli:main"
+ai-chat-rsync = "rsync_launcher:main"
 
 [dependency-groups]
 dev = ["pytest>=7.0", "flake8>=6.0"]
@@ -23,8 +24,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
+packages = ["_rsync_data"]
 py-modules = [
-    "extract_claude_logs",
+    "conversation_extractor",
     "interactive_ui",
     "search_conversations",
     "realtime_search",
@@ -35,11 +37,12 @@ py-modules = [
     "codex_parsers",
     "codex_metadata",
     "source_adapter",
+    "rsync_launcher",
 ]
 
 [tool.setuptools.package-dir]
 "" = "src"
+_rsync_data = "scripts"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-exclude = ["tests*"]
+[tool.setuptools.package-data]
+_rsync_data = ["*.sh"]

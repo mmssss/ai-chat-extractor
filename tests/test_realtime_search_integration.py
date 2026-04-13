@@ -15,7 +15,7 @@ sys.path.append(str(Path(__file__).parent))
 # Local imports after sys.path modification
 from fixtures.sample_conversations import (ConversationFixtures,  # noqa: E402
                                            cleanup_test_environment)
-from extract_claude_logs import ConversationExtractor  # noqa: E402
+from conversation_extractor import ConversationExtractor  # noqa: E402
 from realtime_search import RealTimeSearch, create_smart_searcher  # noqa: E402
 from search_conversations import ConversationSearcher  # noqa: E402
 

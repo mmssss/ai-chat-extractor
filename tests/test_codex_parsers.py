@@ -16,16 +16,12 @@ import codex_parsers  # noqa: E402
 
 
 class TestCodexPassthroughHelpers(unittest.TestCase):
-    """Trivial helpers — ``is_ide_preamble`` and ``clean_slash_command``."""
+    """Trivial helpers — ``is_ide_preamble``."""
 
     def test_is_ide_preamble_always_false(self):
         self.assertFalse(codex_parsers.is_ide_preamble(""))
         self.assertFalse(codex_parsers.is_ide_preamble("any string"))
         self.assertFalse(codex_parsers.is_ide_preamble("<command-name>/foo"))
-
-    def test_clean_slash_command_is_identity(self):
-        self.assertEqual(codex_parsers.clean_slash_command("/foo bar"), "/foo bar")
-        self.assertEqual(codex_parsers.clean_slash_command(""), "")
 
 
 class TestExtractTextContent(unittest.TestCase):

@@ -210,6 +210,21 @@ def get_subagent_metadata(subagent_path: Path) -> Dict:
     return meta
 
 
+def project_label(session: Path, session_meta: Dict) -> str:
+    """Return a human-friendly project label for the listing display.
+
+    Codex rollouts live under ``YYYY/MM/DD/`` so the parent dir name is a
+    date — the real project identity comes from ``session_meta.cwd``.
+    """
+    cwd = session_meta.get("cwd", "") or ""
+    if not cwd:
+        return session.parent.name
+    home = str(Path.home())
+    if cwd.startswith(home):
+        return "~" + cwd[len(home):]
+    return cwd
+
+
 def extract_session_metadata(jsonl_path: Path) -> Dict:
     """Return a metadata dict with the same keys formatters/list UI expect.
 

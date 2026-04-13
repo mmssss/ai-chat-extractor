@@ -284,7 +284,7 @@ class TestInteractiveUIIntegration(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("extract_claude_logs.Path.home")
+    @patch("conversation_extractor.Path.home")
     @patch("builtins.input")
     @patch("builtins.print")
     def test_full_workflow(self, mock_print, mock_input, mock_home):

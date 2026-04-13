@@ -13,8 +13,8 @@ from unittest.mock import Mock, patch
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Local imports after sys.path modification
-from extract_claude_logs import (ConversationExtractor,  # noqa: E402
-                                 launch_interactive, main)
+from conversation_extractor import (ConversationExtractor,  # noqa: E402
+                                    launch_interactive, main)
 
 
 class TestErrorHandling(unittest.TestCase):
@@ -32,7 +32,7 @@ class TestErrorHandling(unittest.TestCase):
 
     def test_init_fallback_all_dirs_fail(self):
         """Test init when fallback directories are used"""
-        with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
+        with patch("conversation_extractor.Path.home", return_value=Path(self.temp_dir)):
             # Should find a writable directory (temp_dir based paths are writable)
             extractor = ConversationExtractor(None)
             self.assertIsNotNone(extractor.output_dir)

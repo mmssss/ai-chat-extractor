@@ -17,7 +17,7 @@ from fixtures.sample_codex_conversations import (  # noqa: E402
     cleanup_test_environment,
 )
 import codex_metadata  # noqa: E402
-from extract_claude_logs import ConversationExtractor  # noqa: E402
+from conversation_extractor import ConversationExtractor  # noqa: E402
 
 
 class CodexExtractorBase(unittest.TestCase):

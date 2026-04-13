@@ -18,28 +18,6 @@ except ImportError:
     from source_adapter import get_source
 
 
-_LABELS = {
-    "claude": {
-        "display_name": "Claude",
-        "filename_prefix": "claude",
-        "assistant_header_md": "## 🤖 Claude\n\n",
-        "h1_md": "# Claude Conversation Log\n\n",
-        "title_html": "Claude Conversation",
-        "h1_html": "Claude Conversation Log",
-        "assistant_role_html": "🤖 Claude",
-    },
-    "codex": {
-        "display_name": "Codex",
-        "filename_prefix": "codex",
-        "assistant_header_md": "## 🤖 Codex\n\n",
-        "h1_md": "# Codex Conversation Log\n\n",
-        "title_html": "Codex Conversation",
-        "h1_html": "Codex Conversation Log",
-        "assistant_role_html": "🤖 Codex",
-    },
-}
-
-
 def _find_min_heading_level(lines):
     """Find the minimum ATX heading level outside code blocks, or None."""
     min_level = None
@@ -211,7 +189,8 @@ def generate_filename(
     ext_map = {"markdown": "md", "json": "json", "html": "html"}
     ext = ext_map.get(format, "md")
 
-    metadata = get_source(source).metadata.extract_session_metadata(session_path)
+    adapter = get_source(source)
+    metadata = adapter.metadata.extract_session_metadata(session_path)
 
     first_ts = metadata["first_timestamp"]
     if first_ts:
@@ -224,9 +203,8 @@ def generate_filename(
         ts_part = datetime.now().strftime("%Y%m%dT%H%M%S")
 
     slug_part = slug_from_metadata(metadata)
-    prefix = _LABELS[source]["filename_prefix"]
 
-    return f"{ts_part}_{prefix}_{slug_part}.{ext}"
+    return f"{ts_part}_{adapter.filename_prefix}_{slug_part}.{ext}"
 
 
 def generate_subagent_filename(
@@ -255,14 +233,17 @@ def generate_subagent_filename(
 
     parent_slug = slug_from_metadata(parent_metadata)
 
-    agent_meta = get_source(source).metadata.get_subagent_metadata(subagent_path)
+    adapter = get_source(source)
+    agent_meta = adapter.metadata.get_subagent_metadata(subagent_path)
     agent_part = agent_meta.get(
         "agent_id_display",
         agent_meta["agentId"][:8] if agent_meta["agentId"] else "unknown",
     )
-    prefix = _LABELS[source]["filename_prefix"]
 
-    return f"{ts_part}_{prefix}_{parent_slug}_agent{agent_index}_{agent_part}.{ext}"
+    return (
+        f"{ts_part}_{adapter.filename_prefix}_{parent_slug}"
+        f"_agent{agent_index}_{agent_part}.{ext}"
+    )
 
 
 def save_as_markdown(
@@ -290,27 +271,29 @@ def save_as_markdown(
         date_str = datetime.now().strftime("%Y-%m-%d")
         time_str = ""
 
-    prefix = _LABELS[source]["filename_prefix"]
+    adapter = get_source(source)
     if filename_override:
         filename = filename_override
     elif session_path:
         filename = generate_filename(session_path, format="markdown", source=source)
     else:
-        filename = f"{prefix}-conversation-{date_str}-{session_id[:8]}.md"
+        filename = (
+            f"{adapter.filename_prefix}-conversation-{date_str}-{session_id[:8]}.md"
+        )
     output_path = resolve_output_path(output_dir, filename)
     if output_path is None:
         return None
 
     role_headers = {
         "user": "## 👤 User\n\n",
-        "assistant": _LABELS[source]["assistant_header_md"],
+        "assistant": f"## 🤖 {adapter.display_name}\n\n",
         "tool_use": "### 🔧 Tool Use\n\n",
         "tool_result": "### 📤 Tool Result\n\n",
         "system": "### ℹ️ System\n\n",
     }
 
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write(_LABELS[source]["h1_md"])
+        f.write(f"# {adapter.display_name} Conversation Log\n\n")
         f.write(f"Session ID: {session_id}\n")
         f.write(f"Date: {date_str}")
         if time_str:
@@ -352,13 +335,15 @@ def save_as_json(
     else:
         date_str = datetime.now().strftime("%Y-%m-%d")
 
-    prefix = _LABELS[source]["filename_prefix"]
+    adapter = get_source(source)
     if filename_override:
         filename = filename_override
     elif session_path:
         filename = generate_filename(session_path, format="json", source=source)
     else:
-        filename = f"{prefix}-conversation-{date_str}-{session_id[:8]}.json"
+        filename = (
+            f"{adapter.filename_prefix}-conversation-{date_str}-{session_id[:8]}.json"
+        )
     output_path = resolve_output_path(output_dir, filename)
     if output_path is None:
         return None
@@ -401,13 +386,15 @@ def save_as_html(
         date_str = datetime.now().strftime("%Y-%m-%d")
         time_str = ""
 
-    prefix = _LABELS[source]["filename_prefix"]
+    adapter = get_source(source)
     if filename_override:
         filename = filename_override
     elif session_path:
         filename = generate_filename(session_path, format="html", source=source)
     else:
-        filename = f"{prefix}-conversation-{date_str}-{session_id[:8]}.html"
+        filename = (
+            f"{adapter.filename_prefix}-conversation-{date_str}-{session_id[:8]}.html"
+        )
     output_path = resolve_output_path(output_dir, filename)
     if output_path is None:
         return None
@@ -417,7 +404,7 @@ def save_as_html(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{_LABELS[source]["title_html"]} - {session_id[:8]}</title>
+    <title>{adapter.display_name} Conversation - {session_id[:8]}</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -494,7 +481,7 @@ def save_as_html(
 </head>
 <body>
     <div class="header">
-        <h1>{_LABELS[source]["h1_html"]}</h1>
+        <h1>{adapter.display_name} Conversation Log</h1>
         <div class="metadata">
             <p>Session ID: {session_id}</p>
             <p>Date: {date_str} {time_str}</p>
@@ -505,7 +492,7 @@ def save_as_html(
 
     role_display = {
         "user": "👤 User",
-        "assistant": _LABELS[source]["assistant_role_html"],
+        "assistant": f"🤖 {adapter.display_name}",
         "tool_use": "🔧 Tool Use",
         "tool_result": "📤 Tool Result",
         "system": "ℹ️ System",

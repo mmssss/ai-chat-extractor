@@ -23,7 +23,7 @@ def is_ide_preamble(text: str) -> bool:
     return any(text.startswith(p) for p in preamble_patterns)
 
 
-def clean_slash_command(text: str) -> str:
+def _clean_slash_command(text: str) -> str:
     """Clean up slash command text that gets duplicated by IDE.
 
     The IDE sometimes produces: '/command             command             args'
@@ -108,7 +108,7 @@ def extract_first_user_text(jsonl_path: Path) -> str:
                                 continue
                             if is_ide_preamble(text):
                                 continue
-                            text = clean_slash_command(text)
+                            text = _clean_slash_command(text)
                             if re.match(r'^/\w+$', text):
                                 continue
                             if text and len(text) > 3:
@@ -123,7 +123,7 @@ def extract_first_user_text(jsonl_path: Path) -> str:
                             continue
                         if is_ide_preamble(text):
                             continue
-                        text = clean_slash_command(text)
+                        text = _clean_slash_command(text)
                         if re.match(r'^/\w+$', text):
                             continue
                         not_tool = not text.startswith("tool_use_id")

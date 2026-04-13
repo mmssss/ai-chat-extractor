@@ -128,6 +128,21 @@ def get_subagent_metadata(subagent_path: Path) -> Dict:
     return meta
 
 
+def project_label(session: Path, session_meta: Dict) -> str:
+    """Return a human-friendly project label for the listing display.
+
+    Claude stores each session under a directory whose name is the slugified
+    project cwd (``-home-user-project`` → ``~/user/project``), so the parent
+    dir name is the primary display source.
+    """
+    project = session.parent.name.replace('-', ' ').strip()
+    if project.startswith("Users"):
+        if len(project.split()) > 2:
+            return "~/" + "/".join(project.split()[2:])
+        return "Home"
+    return project
+
+
 def extract_session_metadata(jsonl_path: Path) -> Dict:
     """Extract all available metadata from a conversation JSONL file.
 

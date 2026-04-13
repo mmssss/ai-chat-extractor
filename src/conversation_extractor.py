@@ -104,10 +104,6 @@ class ConversationExtractor:
         """Check if text is an IDE-generated preamble rather than real user input."""
         return self.adapter.parsers.is_ide_preamble(text)
 
-    def _clean_slash_command(self, text: str) -> str:
-        """Clean up slash command text that gets duplicated by IDE."""
-        return self.adapter.parsers.clean_slash_command(text)
-
     def _extract_first_user_text(self, jsonl_path: Path) -> str:
         """Extract the first meaningful user message text from a JSONL file."""
         return self.adapter.parsers.extract_first_user_text(jsonl_path)
@@ -306,28 +302,8 @@ class ConversationExtractor:
     # ── Listing ──────────────────────────────────────────────────────
 
     def _project_label(self, session: Path, session_meta: Dict) -> str:
-        """Return a human-friendly project label for the listing display.
-
-        Claude: parent dir name decoded from the slugified project path.
-        Codex:  ``cwd`` from session_meta, since the parent dir is the date.
-        """
-        if self.source == "codex":
-            cwd = session_meta.get("cwd", "") or ""
-            if cwd:
-                home = str(Path.home())
-                if cwd.startswith(home):
-                    return "~" + cwd[len(home):]
-                return cwd
-            return session.parent.name
-
-        project = session.parent.name.replace('-', ' ').strip()
-        if project.startswith("Users"):
-            project = (
-                "~/" + "/".join(project.split()[2:])
-                if len(project.split()) > 2
-                else "Home"
-            )
-        return project
+        """Return a human-friendly project label for the listing display."""
+        return self.adapter.metadata.project_label(session, session_meta)
 
     def list_recent_sessions(self, limit: Optional[int] = None) -> List[Path]:
         """List recent sessions with details."""

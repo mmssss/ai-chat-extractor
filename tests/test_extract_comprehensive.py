@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive tests for extract_claude_logs.py to achieve 100% coverage
+Comprehensive tests for conversation_extractor.py to achieve 100% coverage
 """
 
 import json
@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Local imports after sys.path modification
-from extract_claude_logs import ConversationExtractor, main  # noqa: E402
+from conversation_extractor import ConversationExtractor, main  # noqa: E402
 
 
 class TestConversationExtractorComprehensive(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestConversationExtractorComprehensive(unittest.TestCase):
 
     def test_init_with_none_output(self):
         """Test initialization with None output directory"""
-        with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
+        with patch("conversation_extractor.Path.home", return_value=Path(self.temp_dir)):
             extractor = ConversationExtractor(None)
             # Should use one of the fallback directories
             self.assertIsNotNone(extractor.output_dir)
@@ -418,7 +418,7 @@ class TestConversationExtractorComprehensive(unittest.TestCase):
 
     def test_output_dir_fallback(self):
         """Test output directory fallback when Desktop/Documents don't exist"""
-        with patch("extract_claude_logs.Path.home", return_value=Path(self.temp_dir)):
+        with patch("conversation_extractor.Path.home", return_value=Path(self.temp_dir)):
             extractor = ConversationExtractor(None)
             # Should have created a valid output directory
             self.assertTrue(extractor.output_dir.exists())

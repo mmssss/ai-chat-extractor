@@ -30,11 +30,6 @@ def is_ide_preamble(text: str) -> bool:
     return False
 
 
-def clean_slash_command(text: str) -> str:
-    """Codex does not duplicate slash commands the way the Claude IDE does."""
-    return text
-
-
 def extract_text_content(content, detailed: bool = False) -> str:
     """Extract text from Codex content shapes.
 

@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import List, Optional
 
 try:
-    from .extract_claude_logs import ConversationExtractor
+    from .conversation_extractor import ConversationExtractor
     from .realtime_search import RealTimeSearch, create_smart_searcher
     from .search_conversations import ConversationSearcher
     from .source_adapter import get_source
 except ImportError:
-    from extract_claude_logs import ConversationExtractor
+    from conversation_extractor import ConversationExtractor
     from realtime_search import RealTimeSearch, create_smart_searcher
     from search_conversations import ConversationSearcher
     from source_adapter import get_source
