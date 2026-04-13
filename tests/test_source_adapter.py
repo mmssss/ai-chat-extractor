@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
 """Unit tests for src/source_adapter.py."""
 
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent / "src"))
-
-import codex_metadata  # noqa: E402
-import codex_parsers  # noqa: E402
-import metadata  # noqa: E402
-import parsers  # noqa: E402
-from source_adapter import (  # noqa: E402
+from ai_chat_extractor import codex_metadata, codex_parsers, metadata, parsers
+from ai_chat_extractor.source_adapter import (
     SOURCES,
     SourceAdapter,
     get_source,

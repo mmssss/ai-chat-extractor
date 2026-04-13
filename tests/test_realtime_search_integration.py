@@ -3,21 +3,15 @@
 Integration tests for real-time search with actual data
 """
 
-import sys
 import time
 import unittest
 from pathlib import Path
 
-# Add parent directories to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-sys.path.append(str(Path(__file__).parent))
-
-# Local imports after sys.path modification
-from fixtures.sample_conversations import (ConversationFixtures,  # noqa: E402
+from fixtures.sample_conversations import (ConversationFixtures,
                                            cleanup_test_environment)
-from conversation_extractor import ConversationExtractor  # noqa: E402
-from realtime_search import RealTimeSearch, create_smart_searcher  # noqa: E402
-from search_conversations import ConversationSearcher  # noqa: E402
+from ai_chat_extractor.conversation_extractor import ConversationExtractor
+from ai_chat_extractor.realtime_search import RealTimeSearch, create_smart_searcher
+from ai_chat_extractor.search_conversations import ConversationSearcher
 
 
 class TestRealTimeSearchIntegration(unittest.TestCase):

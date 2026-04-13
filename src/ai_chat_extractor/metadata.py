@@ -9,10 +9,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
-try:
-    from .parsers import extract_first_user_text, extract_text_content
-except ImportError:
-    from parsers import extract_first_user_text, extract_text_content
+from .parsers import extract_first_user_text, extract_text_content
 
 
 def find_sessions(

@@ -4,17 +4,12 @@ Test suite for interactive UI components
 """
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from interactive_ui import InteractiveUI  # noqa: E402
+from ai_chat_extractor.interactive_ui import InteractiveUI
 
 
 class TestInteractiveUI(unittest.TestCase):
@@ -45,8 +40,8 @@ class TestInteractiveUI(unittest.TestCase):
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("interactive_ui.RealTimeSearch")
-    @patch("interactive_ui.create_smart_searcher")
+    @patch("ai_chat_extractor.interactive_ui.RealTimeSearch")
+    @patch("ai_chat_extractor.interactive_ui.create_smart_searcher")
     @patch("builtins.input", return_value="n")
     def test_search_conversations_with_result(
         self, mock_input, mock_create_smart, mock_rts_class
@@ -77,8 +72,8 @@ class TestInteractiveUI(unittest.TestCase):
         mock_rts_class.assert_called_once_with(mock_smart_searcher, self.ui.extractor)
         mock_rts.run.assert_called_once()
 
-    @patch("interactive_ui.RealTimeSearch")
-    @patch("interactive_ui.create_smart_searcher")
+    @patch("ai_chat_extractor.interactive_ui.RealTimeSearch")
+    @patch("ai_chat_extractor.interactive_ui.create_smart_searcher")
     def test_search_conversations_cancelled(self, mock_create_smart, mock_rts_class):
         """Test search conversations when user cancels"""
         # Mock the smart searcher
@@ -98,8 +93,8 @@ class TestInteractiveUI(unittest.TestCase):
         # Should return empty list
         self.assertEqual(indices, [])
 
-    @patch("interactive_ui.RealTimeSearch")
-    @patch("interactive_ui.create_smart_searcher")
+    @patch("ai_chat_extractor.interactive_ui.RealTimeSearch")
+    @patch("ai_chat_extractor.interactive_ui.create_smart_searcher")
     @patch("builtins.input", return_value="y")
     @patch("builtins.print")
     def test_search_conversations_file_not_found(
@@ -132,8 +127,8 @@ class TestInteractiveUI(unittest.TestCase):
         ]
         self.assertTrue(len(error_calls) > 0)
 
-    @patch("interactive_ui.subprocess.run")
-    @patch("interactive_ui.platform.system")
+    @patch("ai_chat_extractor.interactive_ui.subprocess.run")
+    @patch("ai_chat_extractor.interactive_ui.platform.system")
     def test_open_folder_macos(self, mock_platform, mock_subprocess):
         """Test opening folder on macOS"""
         mock_platform.return_value = "Darwin"
@@ -143,7 +138,7 @@ class TestInteractiveUI(unittest.TestCase):
 
         mock_subprocess.assert_called_once_with(["open", str(test_path)])
 
-    @patch("interactive_ui.platform.system")
+    @patch("ai_chat_extractor.interactive_ui.platform.system")
     def test_open_folder_windows(self, mock_platform):
         """Test opening folder on Windows"""
         mock_platform.return_value = "Windows"
@@ -154,8 +149,8 @@ class TestInteractiveUI(unittest.TestCase):
             self.ui.open_folder(test_path)
             mock_startfile.assert_called_once_with(str(test_path))
 
-    @patch("interactive_ui.subprocess.run")
-    @patch("interactive_ui.platform.system")
+    @patch("ai_chat_extractor.interactive_ui.subprocess.run")
+    @patch("ai_chat_extractor.interactive_ui.platform.system")
     def test_open_folder_linux(self, mock_platform, mock_subprocess):
         """Test opening folder on Linux"""
         mock_platform.return_value = "Linux"
@@ -227,7 +222,7 @@ class TestInteractiveUI(unittest.TestCase):
         self.assertEqual(indices, [0, 2])
 
     @patch("builtins.input")
-    @patch("interactive_ui.InteractiveUI.search_conversations")
+    @patch("ai_chat_extractor.interactive_ui.InteractiveUI.search_conversations")
     def test_show_sessions_menu_find(self, mock_search, mock_input):
         """Test selecting find option"""
         mock_input.return_value = "F"
@@ -284,7 +279,7 @@ class TestInteractiveUIIntegration(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("conversation_extractor.Path.home")
+    @patch("ai_chat_extractor.conversation_extractor.Path.home")
     @patch("builtins.input")
     @patch("builtins.print")
     def test_full_workflow(self, mock_print, mock_input, mock_home):

@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """Unit tests for src/codex_parsers.py."""
 
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent / "src"))
-sys.path.append(str(Path(__file__).parent))
-
-from fixtures.sample_codex_conversations import (  # noqa: E402
+from fixtures.sample_codex_conversations import (
     CodexFixtures,
     cleanup_test_environment,
 )
-import codex_parsers  # noqa: E402
+from ai_chat_extractor import codex_parsers
 
 
 class TestCodexPassthroughHelpers(unittest.TestCase):

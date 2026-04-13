@@ -19,10 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-try:
-    from .source_adapter import get_source
-except ImportError:
-    from source_adapter import get_source
+from .source_adapter import get_source
 
 # Optional NLP imports for semantic search
 try:
@@ -31,8 +28,6 @@ try:
     SPACY_AVAILABLE = True
 except ImportError:
     SPACY_AVAILABLE = False
-    print("Note: Install spacy for enhanced semantic search capabilities")
-    print("      pip install spacy && python -m spacy download en_core_web_sm")
 
 
 @dataclass

@@ -4,18 +4,13 @@ Aligned tests for search_conversations.py with meaningful coverage
 """
 
 import json
-import sys
 import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from search_conversations import ConversationSearcher, SearchResult  # noqa: E402
+from ai_chat_extractor.search_conversations import ConversationSearcher, SearchResult
 
 
 class TestSearchResult(unittest.TestCase):
@@ -239,7 +234,7 @@ class TestConversationSearcher(unittest.TestCase):
 
     def test_semantic_search_without_spacy(self):
         """Test semantic search falls back when spaCy not available"""
-        with patch("search_conversations.SPACY_AVAILABLE", False):
+        with patch("ai_chat_extractor.search_conversations.SPACY_AVAILABLE", False):
             search_dir = Path(self.temp_dir) / ".claude" / "projects"
             results = self.searcher.search("programming", search_dir=search_dir, mode="semantic")
 

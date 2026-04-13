@@ -12,12 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-try:
-    from . import formatters
-    from .source_adapter import get_source
-except ImportError:
-    import formatters
-    from source_adapter import get_source
+from . import formatters
+from .source_adapter import get_source
 
 
 class ConversationExtractor:
@@ -549,7 +545,7 @@ Examples:
 
     # Handle interactive mode
     if args.interactive or (args.export and args.export.lower() == "logs"):
-        from interactive_ui import main as interactive_main
+        from .interactive_ui import main as interactive_main
 
         interactive_main(source=args.source)
         return
@@ -564,7 +560,7 @@ Examples:
 
     # Handle search mode
     if args.search or args.search_regex:
-        from search_conversations import ConversationSearcher
+        from .search_conversations import ConversationSearcher
 
         searcher = ConversationSearcher(source=source)
 
@@ -760,20 +756,13 @@ def launch_interactive():
 
     # If no arguments provided, launch interactive UI
     if len(sys.argv) == 1:
-        try:
-            from .interactive_ui import main as interactive_main
-        except ImportError:
-            from interactive_ui import main as interactive_main
+        from .interactive_ui import main as interactive_main
         interactive_main()
     # Check if 'search' was passed as an argument
     elif len(sys.argv) > 1 and sys.argv[1] == "search":
         # Launch real-time search with viewing capability
-        try:
-            from .realtime_search import RealTimeSearch, create_smart_searcher
-            from .search_conversations import ConversationSearcher
-        except ImportError:
-            from realtime_search import RealTimeSearch, create_smart_searcher
-            from search_conversations import ConversationSearcher
+        from .realtime_search import RealTimeSearch, create_smart_searcher
+        from .search_conversations import ConversationSearcher
 
         extractor = ConversationExtractor()
         searcher = ConversationSearcher()

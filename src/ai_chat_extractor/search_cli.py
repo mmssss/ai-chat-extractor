@@ -6,14 +6,9 @@ This is used when running `ai-search` from the command line.
 
 import argparse
 
-try:
-    from .search_conversations import ConversationSearcher
-    from .realtime_search import create_smart_searcher
-    from .conversation_extractor import ConversationExtractor
-except ImportError:
-    from search_conversations import ConversationSearcher
-    from realtime_search import create_smart_searcher
-    from conversation_extractor import ConversationExtractor
+from .search_conversations import ConversationSearcher
+from .realtime_search import create_smart_searcher
+from .conversation_extractor import ConversationExtractor
 
 
 def main():

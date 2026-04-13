@@ -11,9 +11,9 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-ai-extract = "conversation_extractor:launch_interactive"
-ai-search = "search_cli:main"
-ai-chat-rsync = "rsync_launcher:main"
+ai-extract = "ai_chat_extractor.conversation_extractor:launch_interactive"
+ai-search = "ai_chat_extractor.search_cli:main"
+ai-chat-rsync = "ai_chat_extractor.rsync_launcher:main"
 
 [dependency-groups]
 dev = ["pytest>=7.0", "flake8>=6.0"]
@@ -23,26 +23,11 @@ search = ["spacy>=3.0"]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["_rsync_data"]
-py-modules = [
-    "conversation_extractor",
-    "interactive_ui",
-    "search_conversations",
-    "realtime_search",
-    "search_cli",
-    "parsers",
-    "metadata",
-    "formatters",
-    "codex_parsers",
-    "codex_metadata",
-    "source_adapter",
-    "rsync_launcher",
-]
-
-[tool.setuptools.package-dir]
-"" = "src"
-_rsync_data = "scripts"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
-_rsync_data = ["*.sh"]
+"ai_chat_extractor._scripts" = ["ai-chat-rsync"]
+
+[tool.pytest.ini_options]
+pythonpath = ["tests"]

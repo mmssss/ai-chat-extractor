@@ -521,8 +521,8 @@ def create_smart_searcher(searcher):
 def main():
     """Main entry point for running real-time search directly."""
     import argparse
-    from conversation_extractor import ConversationExtractor
-    from search_conversations import ConversationSearcher
+    from .conversation_extractor import ConversationExtractor
+    from .search_conversations import ConversationSearcher
 
     parser = argparse.ArgumentParser(
         prog="realtime-search",

@@ -3,7 +3,6 @@
 Comprehensive tests for realtime_search.py to achieve 100% coverage
 """
 
-import sys
 import threading
 import time
 import unittest
@@ -11,12 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from realtime_search import (KeyboardHandler, RealTimeSearch, SearchState,  # noqa: E402
-                             TerminalDisplay, create_smart_searcher)
+from ai_chat_extractor.realtime_search import (KeyboardHandler, RealTimeSearch, SearchState,
+                                               TerminalDisplay, create_smart_searcher)
 
 
 class TestSearchStateComprehensive(unittest.TestCase):
@@ -59,9 +54,9 @@ class TestKeyboardHandlerComprehensive(unittest.TestCase):
         mock_stdin = MagicMock()
         mock_stdin.fileno.return_value = 0
 
-        with patch("realtime_search.termios"), \
-             patch("realtime_search.tty"), \
-             patch("realtime_search.select") as mock_select_module, \
+        with patch("ai_chat_extractor.realtime_search.termios"), \
+             patch("ai_chat_extractor.realtime_search.tty"), \
+             patch("ai_chat_extractor.realtime_search.select") as mock_select_module, \
              patch("sys.stdin", mock_stdin):
 
             handler = KeyboardHandler()
@@ -108,9 +103,9 @@ class TestKeyboardHandlerComprehensive(unittest.TestCase):
         mock_stdin = MagicMock()
         mock_stdin.fileno.return_value = 0
 
-        with patch("realtime_search.termios"), \
-             patch("realtime_search.tty"), \
-             patch("realtime_search.select") as mock_select_module, \
+        with patch("ai_chat_extractor.realtime_search.termios"), \
+             patch("ai_chat_extractor.realtime_search.tty"), \
+             patch("ai_chat_extractor.realtime_search.select") as mock_select_module, \
              patch("sys.stdin", mock_stdin):
 
             handler = KeyboardHandler()
@@ -127,9 +122,9 @@ class TestKeyboardHandlerComprehensive(unittest.TestCase):
         mock_stdin = MagicMock()
         mock_stdin.fileno.return_value = 0
 
-        with patch("realtime_search.termios"), \
-             patch("realtime_search.tty"), \
-             patch("realtime_search.select") as mock_select_module, \
+        with patch("ai_chat_extractor.realtime_search.termios"), \
+             patch("ai_chat_extractor.realtime_search.tty"), \
+             patch("ai_chat_extractor.realtime_search.select") as mock_select_module, \
              patch("sys.stdin", mock_stdin):
 
             handler = KeyboardHandler()
@@ -424,8 +419,8 @@ class TestRealTimeSearchComprehensive(unittest.TestCase):
         mock_keyboard = MagicMock()
         mock_display = MagicMock()
 
-        with patch("realtime_search.KeyboardHandler") as mock_kb_class, \
-             patch("realtime_search.TerminalDisplay", return_value=mock_display):
+        with patch("ai_chat_extractor.realtime_search.KeyboardHandler") as mock_kb_class, \
+             patch("ai_chat_extractor.realtime_search.TerminalDisplay", return_value=mock_display):
 
             mock_kb_class.return_value.__enter__ = Mock(return_value=mock_keyboard)
             mock_kb_class.return_value.__exit__ = Mock(return_value=False)

@@ -4,20 +4,15 @@ Comprehensive test suite for search functionality
 """
 
 import json
-import sys
 import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from realtime_search import (KeyboardHandler, RealTimeSearch, SearchState,  # noqa: E402
-                             TerminalDisplay, create_smart_searcher)
-from search_conversations import ConversationSearcher, SearchResult  # noqa: E402
+from ai_chat_extractor.realtime_search import (KeyboardHandler, RealTimeSearch, SearchState,
+                                               TerminalDisplay, create_smart_searcher)
+from ai_chat_extractor.search_conversations import ConversationSearcher, SearchResult
 
 
 class TestSearchResult(unittest.TestCase):
@@ -242,8 +237,8 @@ class TestKeyboardHandler(unittest.TestCase):
         """Test KeyboardHandler as context manager"""
         # Mock the Unix-specific modules
         with patch("sys.stdin.fileno", return_value=0), patch(
-            "realtime_search.termios"
-        ) as mock_termios, patch("realtime_search.tty") as mock_tty:
+            "ai_chat_extractor.realtime_search.termios"
+        ) as mock_termios, patch("ai_chat_extractor.realtime_search.tty") as mock_tty:
 
             mock_termios.tcgetattr.return_value = "old_settings"
 
@@ -259,7 +254,7 @@ class TestKeyboardHandler(unittest.TestCase):
     @patch("sys.platform", "win32")
     def test_windows_key_detection(self):
         """Test key detection on Windows"""
-        with patch("realtime_search.msvcrt", create=True) as mock_msvcrt:
+        with patch("ai_chat_extractor.realtime_search.msvcrt", create=True) as mock_msvcrt:
             handler = KeyboardHandler()
 
             # Test regular character
@@ -496,9 +491,9 @@ class TestIntegration(unittest.TestCase):
         file_paths = {r.file_path for r in results}
         self.assertEqual(len(file_paths), 3)
 
-    @patch("realtime_search.threading.Thread")
-    @patch("realtime_search.KeyboardHandler")
-    @patch("realtime_search.TerminalDisplay")
+    @patch("ai_chat_extractor.realtime_search.threading.Thread")
+    @patch("ai_chat_extractor.realtime_search.KeyboardHandler")
+    @patch("ai_chat_extractor.realtime_search.TerminalDisplay")
     def test_realtime_search_integration(
         self, mock_display, mock_keyboard, mock_thread
     ):

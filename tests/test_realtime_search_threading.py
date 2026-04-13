@@ -4,18 +4,13 @@ Tests for threading and UI components of realtime search
 These tests are designed to avoid infinite loops by using proper mocking
 """
 
-import sys
 import threading
 import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from realtime_search import RealTimeSearch  # noqa: E402
+from ai_chat_extractor.realtime_search import RealTimeSearch
 
 
 class TestRealTimeSearchThreading(unittest.TestCase):
@@ -125,8 +120,8 @@ class TestRealTimeSearchUI(unittest.TestCase):
         self.mock_extractor = Mock()
         self.rts = RealTimeSearch(self.mock_searcher, self.mock_extractor)
 
-    @patch("realtime_search.threading.Thread")
-    @patch("realtime_search.KeyboardHandler")
+    @patch("ai_chat_extractor.realtime_search.threading.Thread")
+    @patch("ai_chat_extractor.realtime_search.KeyboardHandler")
     def test_run_exit_key(self, mock_keyboard_class, mock_thread_class):
         """Test run exits on ESC key"""
         # Replace display with mock directly (it's an instance attribute)
@@ -149,8 +144,8 @@ class TestRealTimeSearchUI(unittest.TestCase):
         mock_thread.start.assert_called_once()
         mock_display.clear_screen.assert_called()
 
-    @patch("realtime_search.threading.Thread")
-    @patch("realtime_search.KeyboardHandler")
+    @patch("ai_chat_extractor.realtime_search.threading.Thread")
+    @patch("ai_chat_extractor.realtime_search.KeyboardHandler")
     def test_run_select_result(self, mock_keyboard_class, mock_thread_class):
         """Test run returns selected file path"""
         # Replace display with mock directly
@@ -178,8 +173,8 @@ class TestRealTimeSearchUI(unittest.TestCase):
 
         self.assertEqual(result, test_path)
 
-    @patch("realtime_search.threading.Thread")
-    @patch("realtime_search.KeyboardHandler")
+    @patch("ai_chat_extractor.realtime_search.threading.Thread")
+    @patch("ai_chat_extractor.realtime_search.KeyboardHandler")
     def test_run_keyboard_interrupt(self, mock_keyboard_class, mock_thread_class):
         """Test run handles KeyboardInterrupt"""
         # Replace display with mock directly
@@ -200,8 +195,8 @@ class TestRealTimeSearchUI(unittest.TestCase):
         self.assertIsNone(result)
         mock_display.clear_screen.assert_called()
 
-    @patch("realtime_search.threading.Thread")
-    @patch("realtime_search.KeyboardHandler")
+    @patch("ai_chat_extractor.realtime_search.threading.Thread")
+    @patch("ai_chat_extractor.realtime_search.KeyboardHandler")
     def test_run_exception_cleanup(self, mock_keyboard_class, mock_thread_class):
         """Test run cleans up on exception"""
         # Replace display with mock directly

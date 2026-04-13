@@ -4,18 +4,13 @@ Aligned tests for conversation_extractor.py with meaningful coverage
 """
 
 import json
-import sys
 import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from conversation_extractor import ConversationExtractor, main  # noqa: E402
+from ai_chat_extractor.conversation_extractor import ConversationExtractor, main
 
 
 class TestConversationExtractor(unittest.TestCase):
@@ -42,7 +37,10 @@ class TestConversationExtractor(unittest.TestCase):
 
     def test_init_with_none_output_fallback(self):
         """Test initialization falls back when directories can't be created"""
-        with patch("conversation_extractor.Path.home", return_value=Path(self.temp_dir)):
+        with patch(
+            "ai_chat_extractor.conversation_extractor.Path.home",
+            return_value=Path(self.temp_dir),
+        ):
             extractor = ConversationExtractor(None)
             # Should find a writable directory
             self.assertIsNotNone(extractor.output_dir)
@@ -329,7 +327,7 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_no_args_lists_sessions(self):
         """Test that no arguments lists sessions (default action)"""
-        with patch("sys.argv", ["conversation_extractor.py"]):
+        with patch("sys.argv", ["ai_chat_extractor.conversation_extractor.py"]):
             with patch.object(
                 ConversationExtractor, "list_recent_sessions",
                 return_value=[]
@@ -341,7 +339,7 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_list_command(self):
         """Test --list command"""
-        with patch("sys.argv", ["conversation_extractor.py", "--list"]):
+        with patch("sys.argv", ["ai_chat_extractor.conversation_extractor.py", "--list"]):
             with patch.object(
                 ConversationExtractor, "list_recent_sessions"
             ) as mock_list:
@@ -350,7 +348,7 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_extract_single(self):
         """Test --extract with single index"""
-        with patch("sys.argv", ["conversation_extractor.py", "--extract", "1"]):
+        with patch("sys.argv", ["ai_chat_extractor.conversation_extractor.py", "--extract", "1"]):
             mock_sessions = [Path("test1.jsonl"), Path("test2.jsonl")]
 
             with patch.object(
@@ -369,7 +367,10 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_extract_multiple(self):
         """Test --extract with multiple indices"""
-        with patch("sys.argv", ["conversation_extractor.py", "--extract", "1,3,5"]):
+        with patch("sys.argv", [
+            "ai_chat_extractor.conversation_extractor.py",
+            "--extract", "1,3,5",
+        ]):
             mock_sessions = [Path(f"test{i}.jsonl") for i in range(10)]
 
             with patch.object(
@@ -387,7 +388,7 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_recent(self):
         """Test --recent command"""
-        with patch("sys.argv", ["conversation_extractor.py", "--recent", "3"]):
+        with patch("sys.argv", ["ai_chat_extractor.conversation_extractor.py", "--recent", "3"]):
             mock_sessions = [Path(f"test{i}.jsonl") for i in range(10)]
 
             with patch.object(
@@ -405,7 +406,7 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_all(self):
         """Test --all command"""
-        with patch("sys.argv", ["conversation_extractor.py", "--all"]):
+        with patch("sys.argv", ["ai_chat_extractor.conversation_extractor.py", "--all"]):
             mock_sessions = [Path(f"test{i}.jsonl") for i in range(5)]
 
             with patch.object(
@@ -424,10 +425,14 @@ class TestMainFunction(unittest.TestCase):
     def test_main_output_dir(self):
         """Test --output flag"""
         custom_output = "/tmp/custom_output"
-        with patch(
-            "sys.argv", ["conversation_extractor.py", "--list", "--output", custom_output]
-        ):
-            with patch("conversation_extractor.ConversationExtractor") as mock_class:
+        with patch("sys.argv", [
+            "ai_chat_extractor.conversation_extractor.py",
+            "--list", "--output", custom_output,
+        ]):
+            with patch(
+                "ai_chat_extractor.conversation_extractor"
+                ".ConversationExtractor",
+            ) as mock_class:
                 with patch.object(ConversationExtractor, "list_recent_sessions"):
                     main()
                     mock_class.assert_called_once_with(
@@ -436,14 +441,14 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_interactive_flag(self):
         """Test --interactive flag"""
-        with patch("sys.argv", ["conversation_extractor.py", "--interactive"]):
+        with patch("sys.argv", ["ai_chat_extractor.conversation_extractor.py", "--interactive"]):
             with patch.dict(
                 "sys.modules",
-                {"interactive_ui": Mock(main=Mock())}
+                {"ai_chat_extractor.interactive_ui": Mock(main=Mock())}
             ) as mock_modules:
                 with patch("builtins.print"):
                     main()
-                    mock_modules["interactive_ui"].main.assert_called_once()
+                    mock_modules["ai_chat_extractor.interactive_ui"].main.assert_called_once()
 
     def test_main_search(self):
         """Test --search command"""
@@ -452,10 +457,13 @@ class TestMainFunction(unittest.TestCase):
         mock_search_module = Mock()
         mock_search_module.ConversationSearcher.return_value = mock_searcher_instance
 
-        with patch("sys.argv", ["conversation_extractor.py", "--search", "test query"]):
+        with patch("sys.argv", [
+            "ai_chat_extractor.conversation_extractor.py",
+            "--search", "test query",
+        ]):
             with patch.dict(
                 "sys.modules",
-                {"search_conversations": mock_search_module}
+                {"ai_chat_extractor.search_conversations": mock_search_module}
             ):
                 with patch("builtins.print"):
                     main()
@@ -463,7 +471,7 @@ class TestMainFunction(unittest.TestCase):
 
     def test_main_invalid_extract_indices(self):
         """Test --extract with invalid (non-numeric) indices prints error"""
-        with patch("sys.argv", ["conversation_extractor.py", "--extract", "abc"]):
+        with patch("sys.argv", ["ai_chat_extractor.conversation_extractor.py", "--extract", "abc"]):
             with patch("builtins.print") as mock_print:
                 # main() prints "Invalid session number: abc" but doesn't exit
                 main()

@@ -12,10 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-try:
-    from .source_adapter import get_source
-except ImportError:
-    from source_adapter import get_source
+from .source_adapter import get_source
 
 
 def _find_min_heading_level(lines):

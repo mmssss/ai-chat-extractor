@@ -1,16 +1,12 @@
 """Tests for Claude Conversation Extractor"""
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from conversation_extractor import ConversationExtractor  # noqa: E402
+from ai_chat_extractor.conversation_extractor import ConversationExtractor
 
 
 class TestConversationExtractor(unittest.TestCase):
@@ -129,7 +125,7 @@ class TestConversationExtractor(unittest.TestCase):
         conversation = self.extractor.extract_conversation(fake_path)
         self.assertEqual(conversation, [])
 
-    @patch("conversation_extractor.Path.rglob")
+    @patch("ai_chat_extractor.conversation_extractor.Path.rglob")
     def test_find_sessions(self, mock_rglob):
         """Test finding session files"""
         # Mock some session files

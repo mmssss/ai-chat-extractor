@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from formatters import downlevel_headings, escape_headings, save_as_markdown
+from ai_chat_extractor.formatters import downlevel_headings, escape_headings, save_as_markdown
 
 
 class TestDownlevelHeadings(unittest.TestCase):

@@ -4,19 +4,13 @@ Integration tests for search functionality using sample conversations
 """
 
 import os
-import sys
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# Add parent directories to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-sys.path.append(str(Path(__file__).parent))
-
-# Local imports after sys.path modification
-from fixtures.sample_conversations import (ConversationFixtures,  # noqa: E402
+from fixtures.sample_conversations import (ConversationFixtures,
                                            cleanup_test_environment)
-from search_conversations import ConversationSearcher  # noqa: E402
+from ai_chat_extractor.search_conversations import ConversationSearcher
 
 
 class TestSearchIntegration(unittest.TestCase):

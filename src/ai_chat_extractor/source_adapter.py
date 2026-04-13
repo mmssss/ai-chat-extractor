@@ -14,13 +14,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Dict, List
 
-try:
-    from . import codex_metadata, codex_parsers, metadata, parsers
-except ImportError:
-    import codex_metadata
-    import codex_parsers
-    import metadata
-    import parsers
+from . import codex_metadata, codex_parsers, metadata, parsers
 
 
 @dataclass(frozen=True)

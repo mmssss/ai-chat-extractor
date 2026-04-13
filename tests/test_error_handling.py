@@ -3,18 +3,13 @@
 Error handling and edge case tests for meaningful coverage
 """
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from conversation_extractor import (ConversationExtractor,  # noqa: E402
-                                    launch_interactive, main)
+from ai_chat_extractor.conversation_extractor import (ConversationExtractor,
+                                                      launch_interactive, main)
 
 
 class TestErrorHandling(unittest.TestCase):
@@ -32,7 +27,10 @@ class TestErrorHandling(unittest.TestCase):
 
     def test_init_fallback_all_dirs_fail(self):
         """Test init when fallback directories are used"""
-        with patch("conversation_extractor.Path.home", return_value=Path(self.temp_dir)):
+        with patch(
+            "ai_chat_extractor.conversation_extractor.Path.home",
+            return_value=Path(self.temp_dir),
+        ):
             # Should find a writable directory (temp_dir based paths are writable)
             extractor = ConversationExtractor(None)
             self.assertIsNotNone(extractor.output_dir)
@@ -206,7 +204,7 @@ class TestSearchFunctionality(unittest.TestCase):
         with patch("sys.argv", ["prog", "--search", "test query"]):
             with patch.dict(
                 "sys.modules",
-                {"search_conversations": mock_search_module},
+                {"ai_chat_extractor.search_conversations": mock_search_module},
             ):
                 with patch("builtins.print"):
                     with patch("builtins.input", return_value=""):
@@ -240,7 +238,7 @@ class TestSearchFunctionality(unittest.TestCase):
         ):
             with patch.dict(
                 "sys.modules",
-                {"search_conversations": mock_search_module},
+                {"ai_chat_extractor.search_conversations": mock_search_module},
             ):
                 with patch("builtins.print"):
                     main()
@@ -260,22 +258,22 @@ class TestInteractiveMode(unittest.TestCase):
         with patch("sys.argv", ["prog", "--interactive"]):
             with patch.dict(
                 "sys.modules",
-                {"interactive_ui": Mock(main=Mock())}
+                {"ai_chat_extractor.interactive_ui": Mock(main=Mock())}
             ) as mock_modules:
                 with patch("builtins.print"):
                     main()
-                    mock_modules["interactive_ui"].main.assert_called_once()
+                    mock_modules["ai_chat_extractor.interactive_ui"].main.assert_called_once()
 
     def test_main_export_flag_calls_interactive(self):
         """Test --export flag launches interactive mode"""
         with patch("sys.argv", ["prog", "--export", "logs"]):
             with patch.dict(
                 "sys.modules",
-                {"interactive_ui": Mock(main=Mock())}
+                {"ai_chat_extractor.interactive_ui": Mock(main=Mock())}
             ) as mock_modules:
                 with patch("builtins.print"):
                     main()
-                    mock_modules["interactive_ui"].main.assert_called_once()
+                    mock_modules["ai_chat_extractor.interactive_ui"].main.assert_called_once()
 
     def test_main_no_args_lists_sessions(self):
         """Test no arguments lists sessions (default action)"""

@@ -4,17 +4,12 @@ Comprehensive tests for conversation_extractor.py to achieve 100% coverage
 """
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Add parent directory to path before local imports
-sys.path.append(str(Path(__file__).parent.parent))
-
-# Local imports after sys.path modification
-from conversation_extractor import ConversationExtractor, main  # noqa: E402
+from ai_chat_extractor.conversation_extractor import ConversationExtractor, main
 
 
 class TestConversationExtractorComprehensive(unittest.TestCase):
@@ -43,7 +38,10 @@ class TestConversationExtractorComprehensive(unittest.TestCase):
 
     def test_init_with_none_output(self):
         """Test initialization with None output directory"""
-        with patch("conversation_extractor.Path.home", return_value=Path(self.temp_dir)):
+        with patch(
+            "ai_chat_extractor.conversation_extractor.Path.home",
+            return_value=Path(self.temp_dir),
+        ):
             extractor = ConversationExtractor(None)
             # Should use one of the fallback directories
             self.assertIsNotNone(extractor.output_dir)
@@ -329,22 +327,22 @@ class TestConversationExtractorComprehensive(unittest.TestCase):
             # main() does: from interactive_ui import main as interactive_main
             with patch.dict(
                 "sys.modules",
-                {"interactive_ui": Mock(main=Mock())}
+                {"ai_chat_extractor.interactive_ui": Mock(main=Mock())}
             ) as mock_modules:
                 with patch("builtins.print"):
                     main()
-                    mock_modules["interactive_ui"].main.assert_called_once()
+                    mock_modules["ai_chat_extractor.interactive_ui"].main.assert_called_once()
 
     def test_main_export(self):
         """Test main function with --export"""
         with patch("sys.argv", ["prog", "--export", "logs"]):
             with patch.dict(
                 "sys.modules",
-                {"interactive_ui": Mock(main=Mock())}
+                {"ai_chat_extractor.interactive_ui": Mock(main=Mock())}
             ) as mock_modules:
                 with patch("builtins.print"):
                     main()
-                    mock_modules["interactive_ui"].main.assert_called_once()
+                    mock_modules["ai_chat_extractor.interactive_ui"].main.assert_called_once()
 
     def test_main_search(self):
         """Test main function with --search"""
@@ -356,7 +354,7 @@ class TestConversationExtractorComprehensive(unittest.TestCase):
         with patch("sys.argv", ["prog", "--search", "test query"]):
             with patch.dict(
                 "sys.modules",
-                {"search_conversations": mock_search_module}
+                {"ai_chat_extractor.search_conversations": mock_search_module}
             ):
                 with patch("builtins.print"):
                     main()
@@ -384,7 +382,7 @@ class TestConversationExtractorComprehensive(unittest.TestCase):
         ):
             with patch.dict(
                 "sys.modules",
-                {"search_conversations": mock_search_module}
+                {"ai_chat_extractor.search_conversations": mock_search_module}
             ):
                 with patch("builtins.print"):
                     main()
@@ -418,7 +416,10 @@ class TestConversationExtractorComprehensive(unittest.TestCase):
 
     def test_output_dir_fallback(self):
         """Test output directory fallback when Desktop/Documents don't exist"""
-        with patch("conversation_extractor.Path.home", return_value=Path(self.temp_dir)):
+        with patch(
+            "ai_chat_extractor.conversation_extractor.Path.home",
+            return_value=Path(self.temp_dir),
+        ):
             extractor = ConversationExtractor(None)
             # Should have created a valid output directory
             self.assertTrue(extractor.output_dir.exists())

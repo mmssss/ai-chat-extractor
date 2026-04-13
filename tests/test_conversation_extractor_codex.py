@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
 """Integration tests for ConversationExtractor with source="codex"."""
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.append(str(Path(__file__).parent.parent / "src"))
-sys.path.append(str(Path(__file__).parent))
-
-from fixtures.sample_codex_conversations import (  # noqa: E402
+from fixtures.sample_codex_conversations import (
     CodexFixtures,
     PARENT_SESSION_ID,
     PARENT_THREAD_NAME,
     cleanup_test_environment,
 )
-import codex_metadata  # noqa: E402
-from conversation_extractor import ConversationExtractor  # noqa: E402
+from ai_chat_extractor import codex_metadata
+from ai_chat_extractor.conversation_extractor import ConversationExtractor
 
 
 class CodexExtractorBase(unittest.TestCase):

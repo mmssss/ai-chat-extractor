@@ -146,6 +146,19 @@ mkdir -p "$DEST"
 
 echo "Syncing from ${REMOTE_USER}@${REMOTE_HOST} -> ${DEST}"
 
+# Sync global config files (only those that exist on remote)
+found_cfgs=$($SSH_CMD "${REMOTE_USER}@${REMOTE_HOST}" \
+    'for f in .CLAUDE.md CLAUDE.md .AGENTS.md AGENTS.md; do
+        [ -f ~/"$f" ] && echo "$f"; done') || true
+
+for cfg in $found_cfgs; do
+    echo "  Syncing ~/$cfg ..."
+    rsync -az --info=progress2,stats2 \
+        -e "$SSH_CMD" \
+        "${REMOTE_USER}@${REMOTE_HOST}:~/$cfg" \
+        "${DEST}/" || { echo "  Error: rsync ~/$cfg failed." >&2; exit 1; }
+done
+
 if [[ "$SOURCE" == "all" || "$SOURCE" == "claude" ]]; then
     # Sync ~/.claude.json
     echo "  Syncing ~/.claude.json ..."

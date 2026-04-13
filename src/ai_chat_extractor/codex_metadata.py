@@ -11,10 +11,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-try:
-    from .codex_parsers import extract_first_user_text
-except ImportError:
-    from codex_parsers import extract_first_user_text
+from .codex_parsers import extract_first_user_text
 
 
 SESSION_INDEX_PATH = Path.home() / ".codex" / "session_index.jsonl"

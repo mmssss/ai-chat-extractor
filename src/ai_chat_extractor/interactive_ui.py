@@ -9,16 +9,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-try:
-    from .conversation_extractor import ConversationExtractor
-    from .realtime_search import RealTimeSearch, create_smart_searcher
-    from .search_conversations import ConversationSearcher
-    from .source_adapter import get_source
-except ImportError:
-    from conversation_extractor import ConversationExtractor
-    from realtime_search import RealTimeSearch, create_smart_searcher
-    from search_conversations import ConversationSearcher
-    from source_adapter import get_source
+from .conversation_extractor import ConversationExtractor
+from .realtime_search import RealTimeSearch, create_smart_searcher
+from .search_conversations import ConversationSearcher
+from .source_adapter import get_source
 
 
 def get_source_selection() -> Optional[str]:
@@ -86,19 +80,18 @@ class InteractiveUI:
 
         banner = f"""{MAGENTA}{BOLD}
 
- ██████╗██╗      █████╗ ██╗   ██╗██████╗ ███████╗
-██╔════╝██║     ██╔══██╗██║   ██║██╔══██╗██╔════╝
-██║     ██║     ███████║██║   ██║██║  ██║█████╗
-██║     ██║     ██╔══██║██║   ██║██║  ██║██╔══╝
-╚██████╗███████╗██║  ██║╚██████╔╝██████╔╝███████╗
- ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝
+ █████╗ ██╗         ██████╗██╗  ██╗ █████╗ ████████╗
+██╔══██╗██║        ██╔════╝██║  ██║██╔══██╗╚══██╔══╝
+███████║██║ █████╗ ██║     ███████║███████║   ██║
+██╔══██║██║ ╚════╝ ██║     ██╔══██║██╔══██║   ██║
+██║  ██║██║        ╚██████╗██║  ██║██║  ██║   ██║
+╚═╝  ╚═╝╚═╝         ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
 ███████╗██╗  ██╗████████╗██████╗  █████╗  ██████╗████████╗
 ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
 █████╗   ╚███╔╝    ██║   ██████╔╝███████║██║        ██║
 ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══██║██║        ██║
 ███████╗██╔╝ ██╗   ██║   ██║  ██║██║  ██║╚██████╗   ██║
 ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝   ╚═╝
-
 {RESET}"""
         print(banner)
 
